@@ -1,5 +1,5 @@
 # 3d-engine-from-scratch
-With C++ and SDL
+With SDL in C++
 
 # Current Features
 - Basic `.obj` file loading.
