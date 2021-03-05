@@ -43,6 +43,7 @@ void M4x4::cast_identity()
 
 M4x4 M4x4::get_inverse()
 {
+    // https://en.wikipedia.org/wiki/Invertible_matrix
     M4x4 resMat;
     resMat.m_elems[0][0] = m_elems[0][0]; resMat.m_elems[0][1] = m_elems[1][0]; resMat.m_elems[0][2] = m_elems[2][0]; resMat.m_elems[0][3] = 0.0f;
     resMat.m_elems[1][0] = m_elems[0][1]; resMat.m_elems[1][1] = m_elems[1][1]; resMat.m_elems[1][2] = m_elems[2][1]; resMat.m_elems[1][3] = 0.0f;

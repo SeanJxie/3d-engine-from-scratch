@@ -121,11 +121,12 @@ int main(int argc, char* argv[])
             
         }
 
+        // http://www.opengl-tutorial.org/beginners-tutorials/tutorial-6-keyboard-and-mouse/
         SDL_GetMouseState(&mposX, &mposY);
         SDL_WarpMouseInWindow(hWin, (int)WINWT / 2, (int)WINHT / 2);
 
-        camYaw += mouseSens * (WINWT / 2 - mposX);
-        camPitch += mouseSens * (WINHT / 2 - mposY);
+        camYaw += mouseSens * (WINWT / 2.0f - mposX);
+        camPitch += mouseSens * (WINHT / 2.0f - mposY);
 
         upDir = { 0.0f, 1.0f, 0.0f }; // y-axis is up
         target = { 0.0f, 0.0f, 1.0f }; // look z-axis
@@ -136,8 +137,7 @@ int main(int argc, char* argv[])
         M4x4 camRotPitch = get_rot_x(RAD(camPitch));
 
         // rotate target look direction about the origin with our rotation matrix
-        lookDir = get_mul_mat4x4_v3d(camRotYaw, target);
-        lookDir = get_mul_mat4x4_v3d(camRotPitch, lookDir);
+        lookDir = get_mul_mat4x4_v3d(camRotPitch * camRotYaw, target);
 
         // offset our target based on the direction we look and camera position
         target = camPos + lookDir; 
@@ -150,25 +150,29 @@ int main(int argc, char* argv[])
         // opposite of whatever the camera is said to do; we take the inverse of the camera matrix
         // and apply it to our objects:
         viewMat = cameraMat.get_inverse();
+        
+        // lookDir is unit, scale to account for speed
+        // Get forward vector for in/out movement
+        v3d temp_forward = lookDir * moveSpeed;
+
+        // Get right vector for left/right movement: simple cross product of up and forward dir.
+        // https://en.wikipedia.org/wiki/Right-hand_rule
+        v3d temp_right = normv3d(crossv3d(temp_forward, upDir)) * moveSpeed;
+
+        // What kinda messed up camera has vertical movement based on camera angle... no temp_up vector
 
         // Process input 
-        if (left) camPos.x -= moveSpeed;
-        if (right) camPos.x += moveSpeed;
+        // Add components when looking at an angle
+        if (in) camPos = camPos + temp_forward;
+        if (out) camPos = camPos - temp_forward;
+        
+        if (left) camPos = camPos + temp_right;
+        if (right) camPos = camPos - temp_right;
 
         if (up) camPos.y -= moveSpeed;
         if (down) camPos.y += moveSpeed;
 
-        // lookDir is unit, scale to account for speed
-        v3d temp_forward = lookDir * moveSpeed;
-
-        // Add components when looking at an angle
-        if (in) camPos = camPos + temp_forward;
-        if (out) camPos = camPos - temp_forward;
-
-        if (rotY) camYaw += rotSpeed;
-        if (nrotY) camYaw -= rotSpeed;
-
-        // Define transformation matrices
+        // Define transformation matrices (object, not cam)
         matRotX = get_rot_x(RAD(90.0f));
         matRotY = get_rot_y(RAD(90.0f));
         matRotZ = get_rot_z(RAD(0.0f));
@@ -218,10 +222,9 @@ int main(int argc, char* argv[])
             // We simply remove faces not facing the cam, not the ones being "blocked" by others.
             
             // Load faces to buffer so that they may be processed before rendering
-            if (check_tri_visible(triProj, camPos))
-            {
-                triBuffer.push_back(triProj);
-            }  
+
+            triBuffer.push_back(triProj);
+            
         }
 
         // Painter's algorithm; sort triangle render order from back to front based on midpoint
