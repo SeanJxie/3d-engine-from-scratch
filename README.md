@@ -6,7 +6,7 @@
 
 - _**Note**_ that this is a learning project. The engine is by no means super optimized for industry level performance.
 
-#Demo
+# Demo
 The current implemented camera controls for the demo are:
 - `W`: move forward
 - `S`: move backward
