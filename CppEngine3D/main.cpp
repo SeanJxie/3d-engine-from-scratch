@@ -39,15 +39,15 @@ int main(int argc, char* argv[])
     matProj = get_projection_matrix(fov, aspect, zNear, zFar);
 
     float xRot = 0.0f, yRot = 0.0f, zRot = 0.0f;
-    float xPos = 0.0f, yPos = 0.0f, zPos = 100.0f;
-    float rotSpeed = 0.001f;
+    float xPos = 0.0f, yPos = 0.0f, zPos = 15.0f;
+    float rotSpeed = 0.01f;
 
-    float moveSpeed = 0.0001f;
+    float moveSpeed = 0.001f;
 
     v3d camPos = { 0.0f, 0.0f, 0.0f };
 
     mesh object;
-    object.tris = load_obj_from_fname("cube.obj");
+    object.tris = load_obj_from_fname("space_shuttle.obj");
 
     vector<triangle> triBuffer;
 
@@ -186,12 +186,12 @@ int main(int argc, char* argv[])
             // Draw the triangle
   
             
-            draw_tri_rasterF_bresenham(
+            draw_triF(
                 hRend,
                 t.p[0].x, t.p[0].y,
                 t.p[1].x, t.p[1].y,
                 t.p[2].x, t.p[2].y,
-                t.r, t.g, t.b
+                255, 255, 255
             );
 
             //cout << t.r << ' ' << t.g << ' ' << t.b << endl;

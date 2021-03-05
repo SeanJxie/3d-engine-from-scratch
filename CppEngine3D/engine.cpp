@@ -338,7 +338,7 @@ void draw_tri_rasterF_bresenham(SDL_Renderer* h, float x1, float y1, float x2, f
     * https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
     */
 
-    SDL_SetRenderDrawColor(h, rand() % 256, rand() % 256, rand() % 256, SDL_ALPHA_OPAQUE);
+    SDL_SetRenderDrawColor(h, r, g, b, SDL_ALPHA_OPAQUE);
 
     int tx, ty, mx, my, bx, by; // Top mid bot (graphically)
     if (y1 < y2 && y1 < y3)
