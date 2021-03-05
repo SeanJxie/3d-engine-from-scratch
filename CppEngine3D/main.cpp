@@ -29,14 +29,15 @@ int main(int argc, char* argv[])
 
     SDL_Event event;
    
-    // Program vars
+    // Program matrices
+    M4x4 projMat, matRotX, matRotY, matRotZ, matTranslate, worldMat;
+
+    // Projection matrix
     float aspect = (float)LOGICAL_HT / LOGICAL_WT;
     float fov = RAD(90.0f);
     float zFar = 1000.0f;
     float zNear = 0.1f;
 
-    // Set up matrices
-    M4x4 projMat, matRotX, matRotY, matRotZ, matTranslate, worldMat;
     projMat = get_projection_matrix(fov, aspect, zNear, zFar);
 
     // Movement vars
@@ -46,7 +47,7 @@ int main(int argc, char* argv[])
 
     // Camera
     v3d camPos = { 0.0f, 0.0f, 0.0f };
-    v3d lookDir; // Unit vec along camera look direction
+    v3d lookDir;
     v3d upDir;
     v3d target;
     M4x4 cameraMat;
@@ -63,7 +64,6 @@ int main(int argc, char* argv[])
     bool run = true;
 
     // Input vars
-    bool rotX = false, nrotX = false, rotY = false, nrotY = false, rotZ = false, nrotZ = false;
     bool up = false, down = false, left = false, right = false, in = false, out = false;
     int mposX, mposY;
     float mouseSens = 0.05f;
@@ -87,13 +87,6 @@ int main(int argc, char* argv[])
                 case SDLK_LSHIFT: down = true; break;
                 case SDLK_SPACE: up = true; break;
 
-                case SDLK_UP: rotX = true; break;
-                case SDLK_DOWN: nrotX = true; break;
-                case SDLK_LEFT: rotY = true; break;
-                case SDLK_RIGHT: nrotY = true; break;
-                case SDLK_RSHIFT: rotZ = true; break;
-                case SDLK_RCTRL: nrotZ = true; break;
-
                 case SDLK_ESCAPE: run = false; break;
                 }
                 break;
@@ -107,13 +100,6 @@ int main(int argc, char* argv[])
                 case SDLK_d: right = false; break;
                 case SDLK_LSHIFT: down = false; break;
                 case SDLK_SPACE: up = false; break;
-
-                case SDLK_UP: rotX = false; break;
-                case SDLK_DOWN: nrotX = false; break;
-                case SDLK_LEFT: rotY = false; break;
-                case SDLK_RIGHT: nrotY = false; break;
-                case SDLK_RSHIFT: rotZ = false; break;
-                case SDLK_RCTRL: nrotZ = false; break;
                 }
 
                 break;
@@ -136,7 +122,7 @@ int main(int argc, char* argv[])
         M4x4 camRotYaw = get_rot_y(RAD(camYaw)); 
         M4x4 camRotPitch = get_rot_x(RAD(camPitch));
 
-        // rotate target look direction about the origin with our rotation matrix
+        // rotate look direction about the origin with our rotation matrix based on target
         lookDir = get_mul_mat4x4_v3d(camRotPitch * camRotYaw, target);
 
         // offset our target based on the direction we look and camera position
@@ -145,34 +131,37 @@ int main(int argc, char* argv[])
         // Construct camera matrix based on its position, where its looking, and where up is
         cameraMat = get_mat_pointat(camPos, target, upDir);
 
-        // cameraMat contains everything our camera does. In reality, we move the objects 
-        // such that it seems as if the camera is moving. Therefore, we need to do the 
-        // opposite of whatever the camera is said to do; we take the inverse of the camera matrix
-        // and apply it to our objects:
+        // cameraMat specifies everything our camera does. In reality, we move the objects
+        // such that it seems as if the camera is moving, relative to the objects. Therefore, our objects need to do the 
+        // "opposite" of whatever the camera is said to do; we take the inverse of the camera matrix
+        // and apply it to our objects. 
+        // The view matrix is a fundemental processing stage, along with projection and transformation:
         viewMat = cameraMat.get_inverse();
         
         // lookDir is unit, scale to account for speed
         // Get forward vector for in/out movement
         v3d temp_forward = lookDir * moveSpeed;
 
-        // Get right vector for left/right movement: simple cross product of up and forward dir.
+        // Get right vector for left/right movement: simple cross product of up and looking direction
         // https://en.wikipedia.org/wiki/Right-hand_rule
-        v3d temp_right = normv3d(crossv3d(temp_forward, upDir)) * moveSpeed;
+        v3d temp_right = crossv3d(lookDir, upDir) * moveSpeed;
 
-        // What kinda messed up camera has vertical movement based on camera angle... no temp_up vector
+        // What kinda messed up camera has vertical movement based on camera angle... no temp_up vector needed here
 
         // Process input 
-        // Add components when looking at an angle
+        // Add forwards / right vectors to camera position to move
         if (in) camPos = camPos + temp_forward;
         if (out) camPos = camPos - temp_forward;
         
         if (left) camPos = camPos + temp_right;
         if (right) camPos = camPos - temp_right;
 
+        // For up and down, "up" stays the same, no matter the orientation of our cam.
+        // Effectively, the x and y components of our uneeded "temp_up" vector would both be 0, so we just add y components.
         if (up) camPos.y -= moveSpeed;
         if (down) camPos.y += moveSpeed;
 
-        // Define transformation matrices (object, not cam)
+        // Define transformation matrices (object, not cam), all relative to the origin
         matRotX = get_rot_x(RAD(90.0f));
         matRotY = get_rot_y(RAD(90.0f));
         matRotZ = get_rot_z(RAD(0.0f));
@@ -183,17 +172,18 @@ int main(int argc, char* argv[])
         // From wikipedia:
         // "Matrices representing other geometric transformations can be combined with this [identity matrix] and 
         //  each other by matrix multiplication. As a result, any perspective projection of space 
-        //  can be represented as a single matrix."
+        //  can be represented as a single [world] matrix."
 
         worldMat.cast_identity(); 
         worldMat = matRotX * matRotY * matRotZ;
         worldMat = worldMat * matTranslate;
 
-        // Initialize back buffer
+        // Clear back buffer from last frame
         SDL_SetRenderDrawColor(hRend, 0, 0, 0, SDL_ALPHA_OPAQUE); 
         SDL_RenderClear(hRend);
 
-        for (auto& tri : object.tris)
+        // Go through every triangle in the mesh
+        for (auto const &tri : object.tris) // auto const &tri -> can't change tri, no copies are made
         {
             // Stages of transformation
             triangle triProj, triTrans, triView;
@@ -231,7 +221,7 @@ int main(int argc, char* argv[])
         sort_tri_buffer(triBuffer);
 
         // Render triangle buffer
-        for (auto& t : triBuffer)
+        for (auto &t : triBuffer) // auto &t -> able to change t (for mapping)
         {
             // Scale to center
             map_screen_space(t.p[0], LOGICAL_WT, LOGICAL_HT);
@@ -246,18 +236,16 @@ int main(int argc, char* argv[])
                 t.p[2].x, t.p[2].y,
                 255, 255, 255
             );
-
-            //cout << t.r << ' ' << t.g << ' ' << t.b << endl;
         }
 
-        // Present back buffer
+        // Present ("flip") back buffer
         SDL_RenderPresent(hRend);
 
         // Done with this set of triangles. Clear for next loop.
         triBuffer.clear();
     }
 
-
+    // Destroy renderer, window on quit
     SDL_DestroyRenderer(hRend);
     SDL_DestroyWindow(hWin);
     SDL_Quit();
