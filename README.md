@@ -1,5 +1,5 @@
 # 3d-engine-from-scratch
-- With SDL (yes, close enough to "from scratch") in C++
+- With SDL (for window and line/pixel drawing) in C++
 
 - Most of what I've learnt (everything except elementary matrix math and a few rendering algorithms) is from javidx9's amazing [resource](https://www.youtube.com/watch?v=ih20l3pJoeU&list=RDCMUC-yuWVUplUJZvieEligKBkA&index=3)
 
