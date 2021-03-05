@@ -76,9 +76,7 @@ std::vector<triangle> load_obj_from_fname(std::string fname)
                     vVec[std::stoi(raw[1]) - 1],
                     vVec[std::stoi(raw[2]) - 1],
                     vVec[std::stoi(raw[3]) - 1],
-                    rand(),
-                    rand(),
-                    rand()
+                    255, 255, 255
                 }
             );
 
@@ -91,9 +89,7 @@ std::vector<triangle> load_obj_from_fname(std::string fname)
                         vVec[std::stoi(raw[1]) - 1],
                         vVec[std::stoi(raw[3]) - 1],
                         vVec[std::stoi(raw[4]) - 1],
-                        rand(),
-                        rand(),
-                        rand()
+                        255, 255, 255
                     }
                 );
             }

@@ -14,7 +14,10 @@
 // Basic data structs
 struct v3d
 {
-    float x = 0.0f, y = 0.0f, z = 0.0f, w = 1.0f; // Yes technically 4d but we dont really care about w :(
+    // Yes technically 4d but we dont really care about w :(
+    // Here's more on the topic: 
+    // https://en.wikipedia.org/wiki/Homogeneous_coordinates#Use_in_computer_graphics_and_computer_vision
+    float x = 0.0f, y = 0.0f, z = 0.0f, w = 1.0f; 
 
     v3d operator +(v3d o);
     v3d operator -(v3d o);
@@ -49,9 +52,9 @@ M4x4 get_trans_mat(float x, float y, float z);
 M4x4 get_rot_x(float rtheta);
 M4x4 get_rot_y(float rtheta);
 M4x4 get_rot_z(float rtheta);
+M4x4 get_mat_pointat(v3d pos, v3d t, v3d up);
 
 void map_screen_space(v3d& p, int winwt, int winht);
-
 
 void _fill_flat_top(SDL_Renderer* h, float tx, float ty, float mx, float my, float bx, float by);
 void _fill_flat_bot(SDL_Renderer* h, float tx, float ty, float mx, float my, float bx, float by);
@@ -66,7 +69,6 @@ bool _midpoint_compare(triangle t1, triangle t2);
 void sort_tri_buffer(vector<triangle>& v);
 
 v3d get_norm(triangle t);
-bool check_norm_visible(v3d norm, triangle t, v3d cam);
-
+bool check_tri_visible( triangle t, v3d cam);
 
 #endif

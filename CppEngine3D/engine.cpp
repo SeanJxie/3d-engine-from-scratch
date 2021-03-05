@@ -131,6 +131,45 @@ M4x4 get_rot_z(float rtheta)
 }
 
 
+M4x4 get_mat_pointat(v3d pos, v3d t, v3d up)
+{
+    // To point at a postion, we change the forwards, up, right, direction of the entire
+    // cord system
+
+    // new forward
+    v3d new_f = normv3d(t - pos);
+
+    // new up
+    v3d temp = new_f * dotv3d(up, new_f);
+    v3d new_u = normv3d(up - temp);
+
+    // new right, sticks out of new_u, new_f plane
+    v3d new_r = crossv3d(new_u, new_f);
+
+    // Construct dimension change matrix 
+    M4x4 resMat;
+    resMat.m_elems[0][0] = new_r.x;	
+    resMat.m_elems[1][0] = new_u.x;	
+    resMat.m_elems[2][0] = new_f.x;	
+    resMat.m_elems[3][0] = pos.x;
+
+    resMat.m_elems[0][1] = new_r.y;
+    resMat.m_elems[1][1] = new_u.y;
+    resMat.m_elems[2][1] = new_f.y;
+    resMat.m_elems[3][1] = pos.y;
+
+    resMat.m_elems[0][2] = new_r.z;
+    resMat.m_elems[1][2] = new_u.z;
+    resMat.m_elems[2][2] = new_f.z;
+    resMat.m_elems[3][2] = pos.z;
+
+    resMat.m_elems[3][3] = 1.0f;
+
+    return resMat;
+}
+
+
+
 void map_screen_space(v3d& p, int winwt, int winht)
 {
     // Scale triangle into window view
@@ -174,11 +213,24 @@ v3d get_norm(triangle t)
 }
 
 
-bool check_norm_visible(v3d norm, triangle t, v3d cam)
+bool check_tri_visible(triangle t, v3d cam)
 {
     // Check if a triangle is visible from the camera.
-    // Dot product
-    return norm.x * (t.p[0].x - cam.x) + norm.y * (t.p[0].y - cam.y) + norm.z * (t.p[0].z - cam.z) < 0.0f;
+    
+    // Cross to get normal
+    // Take 2 edges of triangle for cross
+    v3d l1 = t.p[1] - t.p[0], l2 = t.p[2] - t.p[0];
+    v3d norm = normv3d(crossv3d(l1, l2));
+    
+    // Shoot ray at a vertex of the triangle
+    v3d camRay = t.p[1] - cam;
+
+    /*Check similarity of normal and camera vectors by looking at how much 
+    the norm vector projects onto the camera vector.
+    Projecting by a negative amount (< 0.0f) means the vectors face away from one another.
+    If they were perpendicular, dotv3d(norm, camRay) == 0.0f.*/
+
+    return dotv3d(norm, camRay) > 0.0f;
 }
 
 
@@ -251,12 +303,29 @@ void draw_tri_wireF(SDL_Renderer* h, float x1, float y1, float x2, float y2, flo
 {
     SDL_SetRenderDrawColor(h, r, g, b, 255);
 
-    /*SDL_FPoint pVec[4] = { {x1, y1}, {x2, y2}, {x3, y3}, {x1, y1} };
-    SDL_RenderDrawLinesF(h, pVec, 4);*/
+    /*
+    The source for a single draw call looks something like
+    // src/render/SDL_render.c#l1558
+        
+        int SDL_RenderDrawPoint(SDL_Renderer * renderer, int x, int y)
+        {
+            SDL_Point point;
 
-    _draw_line_bresenham(h, (int)x1, (int)y1, (int)x2, (int)y2);
+            point.x = x;
+            point.y = y;
+            return SDL_RenderDrawPoints(renderer, &point, 1);
+        }
+    
+    So, calling the "s"(plural) function directly for multiple lines is faster.
+    
+    */
+
+    SDL_FPoint pVec[4] = { {x1, y1}, {x2, y2}, {x3, y3}, {x1, y1} };
+    SDL_RenderDrawLinesF(h, pVec, 4);
+
+    /*_draw_line_bresenham(h, (int)x1, (int)y1, (int)x2, (int)y2);
     _draw_line_bresenham(h, (int)x2, (int)y2, (int)x3, (int)y3);
-    _draw_line_bresenham(h, (int)x3, (int)y3, (int)x1, (int)y1);
+    _draw_line_bresenham(h, (int)x3, (int)y3, (int)x1, (int)y1);*/
 }
 
 
@@ -521,7 +590,8 @@ void draw_tri_raster_bresenhamF(SDL_Renderer* h, float x1, float y1, float x2, f
         if (minx > t2x) minx = t2x;
         if (maxx < t1x) maxx = t1x;
         if (maxx < t2x) maxx = t2x;
-        _draw_line_bresenham(h, minx, y, maxx, y);    // Draw line from min to max points found on the y
+        SDL_RenderDrawLine(h, minx, y, maxx, y); // Draw line from min to max points found on the y
+       /* _draw_line_bresenham(h, minx, y, maxx, y);*/    
                                     // Now increase y
         if (!changed1) t1x += signtx;
         t1x += t1xp;
@@ -580,7 +650,8 @@ void draw_tri_raster_bresenhamF(SDL_Renderer* h, float x1, float y1, float x2, f
         if (minx > t2x) minx = t2x;
         if (maxx < t1x) maxx = t1x;
         if (maxx < t2x) maxx = t2x;
-        _draw_line_bresenham(h, minx, y, maxx, y);
+        SDL_RenderDrawLine(h, minx, y, maxx, y);
+        /*_draw_line_bresenham(h, minx, y, maxx, y);*/
         if (!changed1) t1x += signtx;
         t1x += t1xp;
         if (!changed2) t2x += signmx;

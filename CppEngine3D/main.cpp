@@ -12,8 +12,8 @@ https://www.youtube.com/watch?v=ih20l3pJoeU&list=RDCMUC-yuWVUplUJZvieEligKBkA&in
 
 
 // Program constants
-int WINWT = 700, WINHT = 700;
-int LOGICAL_WT = 700, LOGICAL_HT = 700;
+int WINWT = 1000, WINHT = 1000;
+int LOGICAL_WT = 1000, LOGICAL_HT = 1000;
 const char* WINTT = "C++ Engine3D Demo";
 
 
@@ -23,7 +23,8 @@ int main(int argc, char* argv[])
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window* hWin = SDL_CreateWindow(WINTT, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINWT, WINHT, SDL_WINDOW_SHOWN);
     SDL_Renderer* hRend = SDL_CreateRenderer(hWin, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    
+    SDL_ShowCursor(false);
+
     //SDL_RenderSetLogicalSize(hRend, LOGICAL_WT, LOGICAL_HT);
 
     SDL_Event event;
@@ -35,18 +36,23 @@ int main(int argc, char* argv[])
     float zNear = 0.1f;
 
     // Set up matrices
-    M4x4 matProj, matRotX, matRotY, matRotZ, matTranslate, worldMat;
-    matProj = get_projection_matrix(fov, aspect, zNear, zFar);
+    M4x4 projMat, matRotX, matRotY, matRotZ, matTranslate, worldMat;
+    projMat = get_projection_matrix(fov, aspect, zNear, zFar);
 
     // Movement vars
-    float xRot = 0.0f, yRot = 0.0f, zRot = 0.0f;
-    float xPos = 0.0f, yPos = 0.0f, zPos = 0.0f;
     float allRot = 0.0f;
     float rotSpeed = 1.0f;
+    float moveSpeed = 0.1f;
 
-    float moveSpeed = 0.01f;
-
+    // Camera
     v3d camPos = { 0.0f, 0.0f, 0.0f };
+    v3d lookDir; // Unit vec along camera look direction
+    v3d upDir;
+    v3d target;
+    M4x4 cameraMat;
+    M4x4 viewMat;
+    float camYaw = 0.0f;
+    float camPitch = 0.0f;
 
     mesh object;
     object.tris = load_obj_from_fname("space_shuttle.obj");
@@ -59,6 +65,8 @@ int main(int argc, char* argv[])
     // Input vars
     bool rotX = false, nrotX = false, rotY = false, nrotY = false, rotZ = false, nrotZ = false;
     bool up = false, down = false, left = false, right = false, in = false, out = false;
+    int mposX, mposY;
+    float mouseSens = 0.05f;
 
     while (run)
     {
@@ -81,10 +89,12 @@ int main(int argc, char* argv[])
 
                 case SDLK_UP: rotX = true; break;
                 case SDLK_DOWN: nrotX = true; break;
-                case SDLK_LEFT: rotZ = true; break;
-                case SDLK_RIGHT: nrotZ = true; break;
-                case SDLK_RSHIFT: rotY = true; break;
-                case SDLK_RCTRL: nrotY = true; break;
+                case SDLK_LEFT: rotY = true; break;
+                case SDLK_RIGHT: nrotY = true; break;
+                case SDLK_RSHIFT: rotZ = true; break;
+                case SDLK_RCTRL: nrotZ = true; break;
+
+                case SDLK_ESCAPE: run = false; break;
                 }
                 break;
 
@@ -100,10 +110,10 @@ int main(int argc, char* argv[])
 
                 case SDLK_UP: rotX = false; break;
                 case SDLK_DOWN: nrotX = false; break;
-                case SDLK_LEFT: rotZ = false; break;
-                case SDLK_RIGHT: nrotZ = false; break;
-                case SDLK_RSHIFT: rotY = false; break;
-                case SDLK_RCTRL: nrotY = false; break;
+                case SDLK_LEFT: rotY = false; break;
+                case SDLK_RIGHT: nrotY = false; break;
+                case SDLK_RSHIFT: rotZ = false; break;
+                case SDLK_RCTRL: nrotZ = false; break;
                 }
 
                 break;
@@ -111,43 +121,107 @@ int main(int argc, char* argv[])
             
         }
 
-        allRot += rotSpeed;
+        SDL_GetMouseState(&mposX, &mposY);
+        SDL_WarpMouseInWindow(hWin, (int)WINWT / 2, (int)WINHT / 2);
+
+        camYaw += mouseSens * (WINWT / 2 - mposX);
+        camPitch += mouseSens * (WINHT / 2 - mposY);
+
+        upDir = { 0.0f, 1.0f, 0.0f }; // y-axis is up
+        target = { 0.0f, 0.0f, 1.0f }; // look z-axis
+
+        // Adjust target position based on y rotation (yaw)
+        // Establish a rotation matrix based on yaw
+        M4x4 camRotYaw = get_rot_y(RAD(camYaw)); 
+        M4x4 camRotPitch = get_rot_x(RAD(camPitch));
+
+        // rotate target look direction about the origin with our rotation matrix
+        lookDir = get_mul_mat4x4_v3d(camRotYaw, target);
+        lookDir = get_mul_mat4x4_v3d(camRotPitch, lookDir);
+
+        // offset our target based on the direction we look and camera position
+        target = camPos + lookDir; 
+
+        // Construct camera matrix based on its position, where its looking, and where up is
+        cameraMat = get_mat_pointat(camPos, target, upDir);
+
+        // cameraMat contains everything our camera does. In reality, we move the objects 
+        // such that it seems as if the camera is moving. Therefore, we need to do the 
+        // opposite of whatever the camera is said to do; we take the inverse of the camera matrix
+        // and apply it to our objects:
+        viewMat = cameraMat.get_inverse();
+
+        // Process input 
+        if (left) camPos.x -= moveSpeed;
+        if (right) camPos.x += moveSpeed;
+
+        if (up) camPos.y -= moveSpeed;
+        if (down) camPos.y += moveSpeed;
+
+        // lookDir is unit, scale to account for speed
+        v3d temp_forward = lookDir * moveSpeed;
+
+        // Add components when looking at an angle
+        if (in) camPos = camPos + temp_forward;
+        if (out) camPos = camPos - temp_forward;
+
+        if (rotY) camYaw += rotSpeed;
+        if (nrotY) camYaw -= rotSpeed;
 
         // Define transformation matrices
-        matRotX = get_rot_x(RAD(allRot));
-        matRotY = get_rot_y(RAD(allRot));
-        matRotZ = get_rot_z(RAD(allRot));
+        matRotX = get_rot_x(RAD(90.0f));
+        matRotY = get_rot_y(RAD(90.0f));
+        matRotZ = get_rot_z(RAD(0.0f));
 
-        matTranslate = get_trans_mat(0.0f, 0.0f, 15.0f);
+        matTranslate = get_trans_mat(0.0f, 0.0f, 20.0f);
 
         // Construct world matrix
+        // From wikipedia:
+        // "Matrices representing other geometric transformations can be combined with this [identity matrix] and 
+        //  each other by matrix multiplication. As a result, any perspective projection of space 
+        //  can be represented as a single matrix."
+
         worldMat.cast_identity(); 
         worldMat = matRotX * matRotY * matRotZ;
         worldMat = worldMat * matTranslate;
 
-        // Clear draw buffer
+        // Initialize back buffer
         SDL_SetRenderDrawColor(hRend, 0, 0, 0, SDL_ALPHA_OPAQUE); 
         SDL_RenderClear(hRend);
 
         for (auto& tri : object.tris)
         {
-            triangle triProj, triTrans;
+            // Stages of transformation
+            triangle triProj, triTrans, triView;
 
+            // Apply transformations
             triTrans.p[0] = get_mul_mat4x4_v3d(worldMat, tri.p[0]);
             triTrans.p[1] = get_mul_mat4x4_v3d(worldMat, tri.p[1]);
             triTrans.p[2] = get_mul_mat4x4_v3d(worldMat, tri.p[2]);
 
-            triProj.p[0] = get_mul_mat4x4_v3d(matProj, triTrans.p[0]);
-            triProj.p[1] = get_mul_mat4x4_v3d(matProj, triTrans.p[1]);
-            triProj.p[2] = get_mul_mat4x4_v3d(matProj, triTrans.p[2]);
+            // Apply view transformations
+            triView.p[0] = get_mul_mat4x4_v3d(viewMat, triTrans.p[0]);
+            triView.p[1] = get_mul_mat4x4_v3d(viewMat, triTrans.p[1]);
+            triView.p[2] = get_mul_mat4x4_v3d(viewMat, triTrans.p[2]);
+
+            // Apply projection
+            triProj.p[0] = get_mul_mat4x4_v3d(projMat, triView.p[0]);
+            triProj.p[1] = get_mul_mat4x4_v3d(projMat, triView.p[1]);
+            triProj.p[2] = get_mul_mat4x4_v3d(projMat, triView.p[2]);
 
             // Normalize
             triProj.p[0] = triProj.p[0] / triProj.p[0].w;
             triProj.p[1] = triProj.p[1] / triProj.p[1].w;
             triProj.p[2] = triProj.p[2] / triProj.p[2].w;
 
-            // With wireframe, don't backface cull
-            triBuffer.push_back(triProj);
+            // With wireframe, don't backface cull. 
+            // We simply remove faces not facing the cam, not the ones being "blocked" by others.
+            
+            // Load faces to buffer so that they may be processed before rendering
+            if (check_tri_visible(triProj, camPos))
+            {
+                triBuffer.push_back(triProj);
+            }  
         }
 
         // Painter's algorithm; sort triangle render order from back to front based on midpoint
@@ -160,8 +234,8 @@ int main(int argc, char* argv[])
             map_screen_space(t.p[0], LOGICAL_WT, LOGICAL_HT);
             map_screen_space(t.p[1], LOGICAL_WT, LOGICAL_HT);
             map_screen_space(t.p[2], LOGICAL_WT, LOGICAL_HT);
+
             // Draw the triangle
- 
             draw_tri_wireF(
                 hRend,
                 t.p[0].x, t.p[0].y,
@@ -173,6 +247,7 @@ int main(int argc, char* argv[])
             //cout << t.r << ' ' << t.g << ' ' << t.b << endl;
         }
 
+        // Present back buffer
         SDL_RenderPresent(hRend);
 
         // Done with this set of triangles. Clear for next loop.

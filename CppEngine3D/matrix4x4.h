@@ -18,6 +18,9 @@ public:
     float* m_get_row(int i);
     float* m_get_col(int j);
 
+    // Only works for rotation and translation matrices
+    M4x4 get_inverse();
+
     M4x4 operator *(M4x4 o);
     M4x4 operator +(M4x4 o);
     M4x4 operator -(M4x4 o);
