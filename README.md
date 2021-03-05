@@ -6,5 +6,15 @@
 
 - _**Note**_ that this is a learning project. The engine is by no means super optimized for industry level performance.
 
+#Demo
+The current implemented camera controls for the demo are:
+- `W`: move in 
+- `S`: move out
+- `A`: move left
+- `D`: move right
+- `LSHIFT`: move down
+- `SPACE`: move up
+- `MOUSE`: look around
 
+Clipping has not yet been implemented so moving objects behind the camera breaks things.
 
