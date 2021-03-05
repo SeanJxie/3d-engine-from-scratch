@@ -8,6 +8,7 @@
 
 # Demo
 Install and extract the `CppEngine3D_demo.zip` file and run the `CppEngine3D` application.
+
 The current implemented camera controls for the demo are:
 - `W`: move forward
 - `S`: move backward
