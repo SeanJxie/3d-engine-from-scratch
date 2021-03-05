@@ -8,8 +8,8 @@
 
 #Demo
 The current implemented camera controls for the demo are:
-- `W`: move in 
-- `S`: move out
+- `W`: move forward
+- `S`: move backward
 - `A`: move left
 - `D`: move right
 - `LSHIFT`: move down
