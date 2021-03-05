@@ -5,7 +5,7 @@
 
 My first 3D engine.
 
-I'm following javidx9's tutorial:
+I'm using javidx9's tutorial as a guide:
 https://www.youtube.com/watch?v=ih20l3pJoeU&list=RDCMUC-yuWVUplUJZvieEligKBkA&index=3
 
 */
@@ -24,7 +24,7 @@ int main(int argc, char* argv[])
     SDL_Window* hWin = SDL_CreateWindow(WINTT, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINWT, WINHT, SDL_WINDOW_SHOWN);
     SDL_Renderer* hRend = SDL_CreateRenderer(hWin, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     
-    SDL_RenderSetLogicalSize(hRend, LOGICAL_WT, LOGICAL_HT);
+    //SDL_RenderSetLogicalSize(hRend, LOGICAL_WT, LOGICAL_HT);
 
     SDL_Event event;
    
@@ -34,15 +34,17 @@ int main(int argc, char* argv[])
     float zFar = 1000.0f;
     float zNear = 0.1f;
 
-    // The key to 3D
-    M4x4 matProj;
+    // Set up matrices
+    M4x4 matProj, matRotX, matRotY, matRotZ, matTranslate, worldMat;
     matProj = get_projection_matrix(fov, aspect, zNear, zFar);
 
+    // Movement vars
     float xRot = 0.0f, yRot = 0.0f, zRot = 0.0f;
-    float xPos = 0.0f, yPos = 0.0f, zPos = 15.0f;
-    float rotSpeed = 0.01f;
+    float xPos = 0.0f, yPos = 0.0f, zPos = 0.0f;
+    float allRot = 0.0f;
+    float rotSpeed = 1.0f;
 
-    float moveSpeed = 0.001f;
+    float moveSpeed = 0.01f;
 
     v3d camPos = { 0.0f, 0.0f, 0.0f };
 
@@ -54,6 +56,7 @@ int main(int argc, char* argv[])
     // Loop vars
     bool run = true;
 
+    // Input vars
     bool rotX = false, nrotX = false, rotY = false, nrotY = false, rotZ = false, nrotZ = false;
     bool up = false, down = false, left = false, right = false, in = false, out = false;
 
@@ -107,86 +110,59 @@ int main(int argc, char* argv[])
             }
             
         }
-        // Render
-        SDL_SetRenderDrawColor(hRend, 0, 0, 0, 255); // Clear white
+
+        allRot += rotSpeed;
+
+        // Define transformation matrices
+        matRotX = get_rot_x(RAD(allRot));
+        matRotY = get_rot_y(RAD(allRot));
+        matRotZ = get_rot_z(RAD(allRot));
+
+        matTranslate = get_trans_mat(0.0f, 0.0f, 15.0f);
+
+        // Construct world matrix
+        worldMat.cast_identity(); 
+        worldMat = matRotX * matRotY * matRotZ;
+        worldMat = worldMat * matTranslate;
+
+        // Clear draw buffer
+        SDL_SetRenderDrawColor(hRend, 0, 0, 0, SDL_ALPHA_OPAQUE); 
         SDL_RenderClear(hRend);
 
-        for (auto &tri : object.tris)
+        for (auto& tri : object.tris)
         {
-            triangle triProjected, triTranslated, triRotated;
+            triangle triProj, triTrans;
 
+            triTrans.p[0] = get_mul_mat4x4_v3d(worldMat, tri.p[0]);
+            triTrans.p[1] = get_mul_mat4x4_v3d(worldMat, tri.p[1]);
+            triTrans.p[2] = get_mul_mat4x4_v3d(worldMat, tri.p[2]);
 
-            triRotated = tri;
+            triProj.p[0] = get_mul_mat4x4_v3d(matProj, triTrans.p[0]);
+            triProj.p[1] = get_mul_mat4x4_v3d(matProj, triTrans.p[1]);
+            triProj.p[2] = get_mul_mat4x4_v3d(matProj, triTrans.p[2]);
 
-            if (rotX)  xRot -= rotSpeed;
-            if (nrotX) xRot += rotSpeed;
-            if (rotY) yRot -= rotSpeed;
-            if (nrotY) yRot += rotSpeed;
-            if (rotZ) zRot -= rotSpeed;
-            if (nrotZ) zRot += rotSpeed;
-            
-        
-            rot_p_x(triRotated.p[0], RAD(xRot));
-            rot_p_x(triRotated.p[1], RAD(xRot));
-            rot_p_x(triRotated.p[2], RAD(xRot));
+            // Normalize
+            triProj.p[0] = triProj.p[0] / triProj.p[0].w;
+            triProj.p[1] = triProj.p[1] / triProj.p[1].w;
+            triProj.p[2] = triProj.p[2] / triProj.p[2].w;
 
-            rot_p_y(triRotated.p[0], RAD(yRot));
-            rot_p_y(triRotated.p[1], RAD(yRot));
-            rot_p_y(triRotated.p[2], RAD(yRot));
-
-            rot_p_z(triRotated.p[0], RAD(zRot));
-            rot_p_z(triRotated.p[1], RAD(zRot));
-            rot_p_z(triRotated.p[2], RAD(zRot));
-
-
-            triTranslated = triRotated;
-
-            if (up) yPos += moveSpeed;
-            if (down) yPos -= moveSpeed;
-            if (left)  xPos += moveSpeed;
-            if (right) xPos -= moveSpeed;
-            if (in) zPos -= moveSpeed;
-            if (out) zPos += moveSpeed;
-
-            triTranslated.p[0].x += xPos;
-            triTranslated.p[1].x += xPos;
-            triTranslated.p[2].x += xPos;
-
-            triTranslated.p[0].y += yPos;
-            triTranslated.p[1].y += yPos;
-            triTranslated.p[2].y += yPos;
-
-            triTranslated.p[0].z += zPos;
-            triTranslated.p[1].z += zPos;
-            triTranslated.p[2].z += zPos;
-
-            // back-face culling
-            v3d normal = get_norm(triTranslated);
-
-            if (check_norm_visible(normal, triTranslated, camPos))
-            {
-                // Input/output format parameters
-                mul_mat4x4_v3d(triTranslated.p[0], triProjected.p[0], matProj);
-                mul_mat4x4_v3d(triTranslated.p[1], triProjected.p[1], matProj);
-                mul_mat4x4_v3d(triTranslated.p[2], triProjected.p[2], matProj);
-
-                triBuffer.push_back(triProjected);
-            }   
+            // With wireframe, don't backface cull
+            triBuffer.push_back(triProj);
         }
 
+        // Painter's algorithm; sort triangle render order from back to front based on midpoint
         sort_tri_buffer(triBuffer);
 
+        // Render triangle buffer
         for (auto& t : triBuffer)
         {
             // Scale to center
             map_screen_space(t.p[0], LOGICAL_WT, LOGICAL_HT);
             map_screen_space(t.p[1], LOGICAL_WT, LOGICAL_HT);
             map_screen_space(t.p[2], LOGICAL_WT, LOGICAL_HT);
-
             // Draw the triangle
-  
-            
-            draw_triF(
+ 
+            draw_tri_wireF(
                 hRend,
                 t.p[0].x, t.p[0].y,
                 t.p[1].x, t.p[1].y,
@@ -199,6 +175,7 @@ int main(int argc, char* argv[])
 
         SDL_RenderPresent(hRend);
 
+        // Done with this set of triangles. Clear for next loop.
         triBuffer.clear();
     }
 

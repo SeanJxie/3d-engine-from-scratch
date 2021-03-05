@@ -1,22 +1,62 @@
 #include "engine.h"
 
 
-// Very specific, as 3d projection requires only 4x4 matrices. Consider optimizing matrix class.
-void mul_mat4x4_v3d(v3d in, v3d& out, M4x4 m)
+v3d get_mul_mat4x4_v3d(M4x4 m, v3d v)
 {
-    out.x = in.x * m.m_elems[0][0] + in.y * m.m_elems[1][0] + in.z * m.m_elems[2][0] + m.m_elems[3][0];
-    out.y = in.x * m.m_elems[0][1] + in.y * m.m_elems[1][1] + in.z * m.m_elems[2][1] + m.m_elems[3][1];
-    out.z = in.x * m.m_elems[0][2] + in.y * m.m_elems[1][2] + in.z * m.m_elems[2][2] + m.m_elems[3][2];
-
-    float w = in.x * m.m_elems[0][3] + in.y * m.m_elems[1][3] + in.z * m.m_elems[2][3] + m.m_elems[3][3];
-
-    if (w != 0.0f)
-    {
-        out.x /= w;
-        out.y /= w;
-        out.z /= w;
-    }
+    return {
+        v.x * m.m_elems[0][0] + v.y * m.m_elems[1][0] + v.z * m.m_elems[2][0] + v.w * m.m_elems[3][0],
+        v.x * m.m_elems[0][1] + v.y * m.m_elems[1][1] + v.z * m.m_elems[2][1] + v.w * m.m_elems[3][1],
+        v.x * m.m_elems[0][2] + v.y * m.m_elems[1][2] + v.z * m.m_elems[2][2] + v.w * m.m_elems[3][2],
+        v.x * m.m_elems[0][3] + v.y * m.m_elems[1][3] + v.z * m.m_elems[2][3] + v.w * m.m_elems[3][3]
+    };
 }
+
+v3d v3d::operator +(v3d o)
+{
+    return { x + o.x, y + o.y, z + o.z };
+}
+
+v3d v3d::operator -(v3d o)
+{
+    return { x - o.x, y - o.y, z - o.z };
+}
+
+v3d v3d::operator *(float o)
+{
+    return { x * o, y * o, z * o };
+}
+
+v3d v3d::operator /(float o)
+{
+    return { x / o, y / o, z / o };
+}
+
+float dotv3d(v3d a, v3d b)
+{
+    // There is a dot function for standard arrays defined in matrix4x4.h used for matrix mul
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+float magv3d(v3d v)
+{
+    return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
+v3d normv3d(v3d v)
+{
+    float m = magv3d(v);
+    return { v.x / m, v.y / m, v.z / m };
+}
+
+v3d crossv3d(v3d a, v3d b)
+{
+    return {
+        a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z,
+        a.x * b.y - a.y * b.x
+    };
+}
+
 
 
 M4x4 get_projection_matrix(float rfov, float hwaspect, float zNear, float zFar)
@@ -24,7 +64,7 @@ M4x4 get_projection_matrix(float rfov, float hwaspect, float zNear, float zFar)
     // https://www.jwwalker.com/pages/transformations.html
     M4x4 projMat;
     projMat.m_elems[0][0] = hwaspect / tanf(rfov / 2.0f);
-    projMat.m_elems[1][1] = 1.0f / tanf(rfov / 2.0f), 0.0f;
+    projMat.m_elems[1][1] = 1.0f / tanf(rfov / 2.0f);
     projMat.m_elems[2][2] = zFar / (zFar - zNear);
     projMat.m_elems[2][3] = 1.0f;
     projMat.m_elems[3][2] = -(zFar * zNear) / (zFar - zNear);
@@ -33,7 +73,22 @@ M4x4 get_projection_matrix(float rfov, float hwaspect, float zNear, float zFar)
 }
 
 
-void rot_p_x(v3d& p, float rtheta)
+M4x4 get_trans_mat(float x, float y, float z)
+{
+    M4x4 transMat;
+    transMat.m_elems[0][0] = 1.0f;
+    transMat.m_elems[1][1] = 1.0f;
+    transMat.m_elems[2][2] = 1.0f;
+    transMat.m_elems[3][3] = 1.0f;
+    transMat.m_elems[3][0] = x;
+    transMat.m_elems[3][1] = y;
+    transMat.m_elems[3][2] = z;
+
+    return transMat;
+}
+
+
+M4x4 get_rot_x(float rtheta)
 {
     // https://wikimedia.org/api/rest_v1/media/math/render/svg/a6821937d5031de282a190f75312353c970aa2df
     M4x4 rotMat;
@@ -42,12 +97,13 @@ void rot_p_x(v3d& p, float rtheta)
     rotMat.m_elems[1][2] = sinf(rtheta);
     rotMat.m_elems[2][1] = -sinf(rtheta);
     rotMat.m_elems[2][2] = cosf(rtheta);
+    rotMat.m_elems[3][3] = 1.0f;
 
-    mul_mat4x4_v3d(p, p, rotMat);
+    return rotMat;
 }
 
 
-void rot_p_y(v3d& p, float rtheta)
+M4x4 get_rot_y(float rtheta)
 {
     M4x4 rotMat;
     rotMat.m_elems[0][0] = cosf(rtheta);
@@ -55,12 +111,13 @@ void rot_p_y(v3d& p, float rtheta)
     rotMat.m_elems[1][1] = 1.0f;
     rotMat.m_elems[2][0] = -sinf(rtheta);
     rotMat.m_elems[2][2] = cosf(rtheta);
+    rotMat.m_elems[3][3] = 1.0f;
 
-    mul_mat4x4_v3d(p, p, rotMat);
+    return rotMat;
 }
 
 
-void rot_p_z(v3d& p, float rtheta)
+M4x4 get_rot_z(float rtheta)
 {
     M4x4 rotMat;
     rotMat.m_elems[0][0] = cosf(rtheta);
@@ -68,8 +125,9 @@ void rot_p_z(v3d& p, float rtheta)
     rotMat.m_elems[1][0] = -sinf(rtheta);
     rotMat.m_elems[1][1] = cosf(rtheta);
     rotMat.m_elems[2][2] = 1.0f;
-
-    mul_mat4x4_v3d(p, p, rotMat);
+    rotMat.m_elems[3][3] = 1.0f;
+    
+    return rotMat;
 }
 
 
@@ -82,8 +140,8 @@ void map_screen_space(v3d& p, int winwt, int winht)
 
     // The projection matrix normalizes our window such that
     // Left = -1, right = 1, top = 1, bottom = -1
-    p.x += 1.0f;
-    p.y += 1.0f;
+    v3d offSetToCenter = { 1.0f, 1.0f, 0.0f };
+    p = p + offSetToCenter;
 
     // half of window width/height is simply the center of window
     p.x *= 0.5f * (float)winwt;
@@ -139,7 +197,7 @@ void sort_tri_buffer(vector<triangle>& v)
 }
 
 
-void draw_line_bresenham(SDL_Renderer* h, int sx, int sy, int ex, int ey)
+void _draw_line_bresenham(SDL_Renderer* h, int sx, int sy, int ex, int ey)
 {
     /*
     SDL_RenderSetLogicalSize seems to not scale SDL_RenderDrawLine. 
@@ -189,16 +247,16 @@ void draw_line_bresenham(SDL_Renderer* h, int sx, int sy, int ex, int ey)
 
 
 
-void draw_triF(SDL_Renderer* h, float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b)
+void draw_tri_wireF(SDL_Renderer* h, float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b)
 {
     SDL_SetRenderDrawColor(h, r, g, b, 255);
 
     /*SDL_FPoint pVec[4] = { {x1, y1}, {x2, y2}, {x3, y3}, {x1, y1} };
     SDL_RenderDrawLinesF(h, pVec, 4);*/
 
-    draw_line_bresenham(h, (int)x1, (int)y1, (int)x2, (int)y2);
-    draw_line_bresenham(h, (int)x2, (int)y2, (int)x3, (int)y3);
-    draw_line_bresenham(h, (int)x3, (int)y3, (int)x1, (int)y1);
+    _draw_line_bresenham(h, (int)x1, (int)y1, (int)x2, (int)y2);
+    _draw_line_bresenham(h, (int)x2, (int)y2, (int)x3, (int)y3);
+    _draw_line_bresenham(h, (int)x3, (int)y3, (int)x1, (int)y1);
 }
 
 
@@ -213,7 +271,7 @@ void _fill_flat_top(SDL_Renderer* h, float tx, float ty, float mx, float my, flo
 
     for (y = by; y >= ty; y--)
     {
-        draw_line_bresenham(h, (int)curx1, (int)y, (int)curx2, (int)y);
+        _draw_line_bresenham(h, (int)curx1, (int)y, (int)curx2, (int)y);
         curx1 -= invslope1;
         curx2 -= invslope2;
     }
@@ -232,7 +290,7 @@ void _fill_flat_bot(SDL_Renderer* h, float tx, float ty, float mx, float my, flo
 
     for (y = ty; y <= my; y++)
     {
-        draw_line_bresenham(h, (int)curx1, (int)y, (int)curx2, (int)y);
+        _draw_line_bresenham(h, (int)curx1, (int)y, (int)curx2, (int)y);
         curx1 += invslope1;
         curx2 += invslope2;
     }
@@ -241,7 +299,7 @@ void _fill_flat_bot(SDL_Renderer* h, float tx, float ty, float mx, float my, flo
 
 
 
-void draw_tri_rasterF_std(SDL_Renderer* h, float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b)
+void draw_tri_raster_stdF(SDL_Renderer* h, float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b)
 {
     float tx, ty, mx, my, bx, by; // Top mid bot (graphically)
     if (y1 < y2 && y1 < y3)
@@ -327,7 +385,7 @@ void draw_tri_rasterF_std(SDL_Renderer* h, float x1, float y1, float x2, float y
 }
 
 
-void draw_tri_rasterF_bresenham(SDL_Renderer* h, float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b)
+void draw_tri_raster_bresenhamF(SDL_Renderer* h, float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b)
 {
     /*
     * draw_tri_rasterF_std() works, but is a little flickery; hope to solve in the future.
@@ -463,7 +521,7 @@ void draw_tri_rasterF_bresenham(SDL_Renderer* h, float x1, float y1, float x2, f
         if (minx > t2x) minx = t2x;
         if (maxx < t1x) maxx = t1x;
         if (maxx < t2x) maxx = t2x;
-        draw_line_bresenham(h, minx, y, maxx, y);    // Draw line from min to max points found on the y
+        _draw_line_bresenham(h, minx, y, maxx, y);    // Draw line from min to max points found on the y
                                     // Now increase y
         if (!changed1) t1x += signtx;
         t1x += t1xp;
@@ -522,7 +580,7 @@ void draw_tri_rasterF_bresenham(SDL_Renderer* h, float x1, float y1, float x2, f
         if (minx > t2x) minx = t2x;
         if (maxx < t1x) maxx = t1x;
         if (maxx < t2x) maxx = t2x;
-        draw_line_bresenham(h, minx, y, maxx, y);
+        _draw_line_bresenham(h, minx, y, maxx, y);
         if (!changed1) t1x += signtx;
         t1x += t1xp;
         if (!changed2) t2x += signmx;

@@ -70,8 +70,6 @@ std::vector<triangle> load_obj_from_fname(std::string fname)
         
         else if (raw[0] == "f")
         {
-            srand(time(NULL));
-
             nTris++;
             fVec.push_back(
                 {

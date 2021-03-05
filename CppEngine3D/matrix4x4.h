@@ -12,6 +12,9 @@ class M4x4
 public:
     float m_elems[4][4] = { 0.0f };
 
+    void cast_identity();
+    void print();
+
     float* m_get_row(int i);
     float* m_get_col(int j);
 

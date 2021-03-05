@@ -22,7 +22,7 @@ float* M4x4::m_get_row(int i)
 
 float* M4x4::m_get_col(int j)
 {
-    float col[4];
+    static float col[4] = { 0 };
     int i;
     for (i = 0; i < 4; i++)
     {
@@ -32,6 +32,14 @@ float* M4x4::m_get_col(int j)
     return col;
 }
 
+
+void M4x4::cast_identity()
+{
+    for (int ij = 0; ij < 4; ij++)
+    {
+        m_elems[ij][ij] = 1.0f;
+    }
+}
 
 
 M4x4 M4x4::operator *(M4x4 o)
@@ -88,4 +96,17 @@ M4x4 M4x4::operator -(M4x4 o)
 }
 
 
+void M4x4::print()
+{
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            cout << m_elems[i][j] << ' ';
+        }
 
+        cout << endl;
+    }
+
+    cout << endl;
+}
