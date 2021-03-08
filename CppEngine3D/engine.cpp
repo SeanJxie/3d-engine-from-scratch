@@ -342,7 +342,7 @@ bool check_tri_visible(triangle t, v3d cam)
     Projecting by a negative amount (< 0.0f) means the vectors face away from one another.
     If they were perpendicular, dotv3d(norm, camRay) == 0.0f.*/
 
-    return dotv3d(norm, camRay) < 0.0f;
+    return dotv3d(norm, camRay) > 0.0f;
 }
 
 

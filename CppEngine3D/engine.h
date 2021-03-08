@@ -2,6 +2,7 @@
 #define ENGINE_H
 
 #include <SDL.h>
+#include <SDL_opengl.h>
 #include <math.h> // math.h is not included in matrix.h
 #include <vector>
 #include <list>
