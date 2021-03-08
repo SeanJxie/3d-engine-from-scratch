@@ -11,6 +11,118 @@ v3d get_mul_mat4x4_v3d(M4x4 m, v3d v)
     };
 }
 
+
+v3d plane_intersectv3d(v3d &point_on_plane, v3d &plane_norm, v3d &ls, v3d &le)
+{
+    //https://en.wikipedia.org/wiki/Line%E2%80%93plane_intersection#Parametric_form
+    plane_norm = normv3d(plane_norm);
+
+    float pd = -dotv3d(plane_norm, point_on_plane);
+    float ad = dotv3d(ls, plane_norm);
+    float bd = dotv3d(le, plane_norm);
+    float t = (-pd - ad) / (bd - ad);
+    v3d entire_line = le - ls;
+    v3d intersect_line = entire_line * t;
+
+    return ls + intersect_line;
+}
+
+
+float _point_plane_closest_dist(v3d point_on_plane, v3d plane_norm, v3d p)
+{
+    return (plane_norm.x + plane_norm.y * p.y + plane_norm.z * p.z - dotv3d(plane_norm, point_on_plane));
+}
+
+
+int clip_tri_plane(v3d point_on_plane, v3d plane_norm, triangle& in_tri, triangle& out_tri1, triangle& out_tri2)
+{
+    // Count the number of newly formed triangles in the clipping process.
+    // And yes, output the newly formed triangles as well (maximum of 2 in the case of quad split).
+    // We do so through in_tri1 and in_tri2. 
+
+    // Make sure norm
+    plane_norm = normv3d(plane_norm);
+
+    // Array of pointers
+    v3d* points_in[3];
+    v3d* points_out[3];
+
+    // Counts
+    int points_in_count = 0;
+    int points_out_count = 0;
+
+    // Distance of each point from plane (closest)
+    float d0 = _point_plane_closest_dist(point_on_plane, plane_norm, in_tri.p[0]);
+    float d1 = _point_plane_closest_dist(point_on_plane, plane_norm, in_tri.p[1]);
+    float d2 = _point_plane_closest_dist(point_on_plane, plane_norm, in_tri.p[2]);
+
+    // If point is "inside" (on one side (positive side)) of plane, add its address to 
+    // the points_in array. Otherwise, it is not "inside" and thus add its address to the points_out array
+    if (d0 >= 0.0f) points_in[points_in_count++] = &in_tri.p[0];
+    else points_out[points_out_count++] = &in_tri.p[0];
+
+    if (d1 >= 0.0f) points_in[points_in_count++] = &in_tri.p[1];
+    else points_out[points_out_count++] = &in_tri.p[1];
+    
+    if (d2 >= 0.0f) points_in[points_in_count++] = &in_tri.p[2];
+    else points_out[points_out_count++] = &in_tri.p[2];
+
+    // Now we go through all possible outcomes of point configurations
+    
+    if (points_in_count == 0)
+    {
+        // The triangle is not within our plane (negative side)
+        return 0;
+    }
+
+    if (points_in_count == 3)
+    {
+        // Entire triangle is within plane (positive side)
+        // Set input to output
+        out_tri1 = in_tri;
+
+        return 1;
+    }
+
+    if (points_in_count == 1 && points_out_count == 2)
+    {
+        // 2 points of the triangle lie on the negative side of the plane
+        // 1 point lies inside; the triangle must be clipped here
+
+        out_tri1.c = in_tri.c;
+
+        // We keep the point on the inside.
+        out_tri1.p[0] = *points_in[0]; // Dereference address
+
+        // We'll set the other 2 points to the 2 intersection points between the triangle and the plane.
+        out_tri1.p[1] = plane_intersectv3d(point_on_plane, plane_norm, *points_in[0], *points_out[0]);
+        out_tri1.p[2] = plane_intersectv3d(point_on_plane, plane_norm, *points_in[0], *points_out[1]);
+
+        return 1; // One new formed triangle
+    }
+
+    if (points_in_count == 2 && points_out_count == 1)
+    {
+        // In the case that 2 points lie inside and 1 lies outside,
+        // a quad is formed. We'll need to split the quad appropriately.
+
+        out_tri1.c = in_tri.c;
+        out_tri2.c = in_tri.c;
+
+        out_tri1.p[0] = *points_in[0];
+        out_tri1.p[1] = *points_in[1];
+        out_tri1.p[2] = plane_intersectv3d(point_on_plane, plane_norm, *points_in[0], *points_out[0]);
+
+        out_tri2.p[0] = *points_in[1];
+        out_tri2.p[1] = out_tri1.p[2];
+        out_tri2.p[2] = plane_intersectv3d(point_on_plane, plane_norm, *points_in[1], *points_out[0]);
+
+        return 2;
+    }
+}
+
+
+
 v3d v3d::operator +(v3d o)
 {
     return { x + o.x, y + o.y, z + o.z };
@@ -223,14 +335,14 @@ bool check_tri_visible(triangle t, v3d cam)
     v3d norm = normv3d(crossv3d(l1, l2));
     
     // Shoot ray at a vertex of the triangle
-    v3d camRay = t.p[1] - cam;
+    v3d camRay = t.p[0] - cam;
 
     /*Check similarity of normal and camera vectors by looking at how much 
     the norm vector projects onto the camera vector.
     Projecting by a negative amount (< 0.0f) means the vectors face away from one another.
     If they were perpendicular, dotv3d(norm, camRay) == 0.0f.*/
 
-    return dotv3d(norm, camRay) > 0.0f;
+    return dotv3d(norm, camRay) < 0.0f;
 }
 
 
@@ -591,7 +703,7 @@ void draw_tri_raster_bresenhamF(SDL_Renderer* h, float x1, float y1, float x2, f
         if (maxx < t1x) maxx = t1x;
         if (maxx < t2x) maxx = t2x;
         SDL_RenderDrawLine(h, minx, y, maxx, y); // Draw line from min to max points found on the y
-       /* _draw_line_bresenham(h, minx, y, maxx, y);*/    
+        //_draw_line_bresenham(h, minx, y, maxx, y);    
                                     // Now increase y
         if (!changed1) t1x += signtx;
         t1x += t1xp;
@@ -651,7 +763,7 @@ void draw_tri_raster_bresenhamF(SDL_Renderer* h, float x1, float y1, float x2, f
         if (maxx < t1x) maxx = t1x;
         if (maxx < t2x) maxx = t2x;
         SDL_RenderDrawLine(h, minx, y, maxx, y);
-        /*_draw_line_bresenham(h, minx, y, maxx, y);*/
+        //_draw_line_bresenham(h, minx, y, maxx, y);
         if (!changed1) t1x += signtx;
         t1x += t1xp;
         if (!changed2) t2x += signmx;

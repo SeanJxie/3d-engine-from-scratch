@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <strstream>
 
 #include "engine.h"
 

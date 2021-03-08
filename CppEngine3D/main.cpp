@@ -55,8 +55,10 @@ int main(int argc, char* argv[])
     float camYaw = 0.0f;
     float camPitch = 0.0f;
 
+    const float ABSMAXPITCH = 89.0f; // standard
+
     mesh object;
-    object.tris = load_obj_from_fname("space_shuttle.obj");
+    object.tris = load_obj_from_fname("cube.obj");
 
     vector<triangle> triBuffer;
 
@@ -77,6 +79,7 @@ int main(int argc, char* argv[])
             case SDL_QUIT:
                 run = false;
                 break;
+
             case SDL_KEYDOWN:
                 switch (event.key.keysym.sym)
                 {
@@ -110,9 +113,12 @@ int main(int argc, char* argv[])
         // http://www.opengl-tutorial.org/beginners-tutorials/tutorial-6-keyboard-and-mouse/
         SDL_GetMouseState(&mposX, &mposY);
         SDL_WarpMouseInWindow(hWin, (int)WINWT / 2, (int)WINHT / 2);
-
-        camYaw += mouseSens * (WINWT / 2.0f - mposX);
+        
         camPitch += mouseSens * (WINHT / 2.0f - mposY);
+        camYaw += mouseSens * (WINWT / 2.0f - mposX);
+        
+        // We don't want the user to rotate beyond 90 deg up/down
+        if (fabs(camPitch) > ABSMAXPITCH) camPitch = ABSMAXPITCH * ((camPitch > 0.0f) ? 1.0f : -1.0f);
 
         upDir = { 0.0f, 1.0f, 0.0f }; // y-axis is up
         target = { 0.0f, 0.0f, 1.0f }; // look z-axis
@@ -142,7 +148,7 @@ int main(int argc, char* argv[])
         // Get forward vector for in/out movement
         v3d temp_forward = lookDir * moveSpeed;
 
-        // Get right vector for left/right movement: simple cross product of up and looking direction
+        // Get right vector for left/right movement: simple cross product of up and looking direction. It is already normalized
         // https://en.wikipedia.org/wiki/Right-hand_rule
         v3d temp_right = crossv3d(lookDir, upDir) * moveSpeed;
 
@@ -164,7 +170,7 @@ int main(int argc, char* argv[])
         // Define transformation matrices (object, not cam), all relative to the origin
         matRotX = get_rot_x(RAD(90.0f));
         matRotY = get_rot_y(RAD(90.0f));
-        matRotZ = get_rot_z(RAD(0.0f));
+        matRotZ = get_rot_z(RAD(90.0f));
 
         matTranslate = get_trans_mat(0.0f, 0.0f, 20.0f);
 
@@ -178,14 +184,15 @@ int main(int argc, char* argv[])
         worldMat = matRotX * matRotY * matRotZ;
         worldMat = worldMat * matTranslate;
 
-        // Clear back buffer from last frame
-        SDL_SetRenderDrawColor(hRend, 0, 0, 0, SDL_ALPHA_OPAQUE); 
-        SDL_RenderClear(hRend);
-
         // Go through every triangle in the mesh
-        for (auto const &tri : object.tris) // auto const &tri -> can't change tri, no copies are made
+        for (auto &tri : object.tris) // auto const &tri -> can't change tri, no copies are made
         {
             // Stages of transformation
+            /*
+            (1) -> We want to orient our objects. How? World matrix.
+            (2) -> transform objects with view matrix such
+            
+            */
             triangle triProj, triTrans, triView;
 
             // Apply transformations
@@ -193,49 +200,114 @@ int main(int argc, char* argv[])
             triTrans.p[1] = get_mul_mat4x4_v3d(worldMat, tri.p[1]);
             triTrans.p[2] = get_mul_mat4x4_v3d(worldMat, tri.p[2]);
 
-            // Apply view transformations
-            triView.p[0] = get_mul_mat4x4_v3d(viewMat, triTrans.p[0]);
-            triView.p[1] = get_mul_mat4x4_v3d(viewMat, triTrans.p[1]);
-            triView.p[2] = get_mul_mat4x4_v3d(viewMat, triTrans.p[2]);
 
-            // Apply projection
-            triProj.p[0] = get_mul_mat4x4_v3d(projMat, triView.p[0]);
-            triProj.p[1] = get_mul_mat4x4_v3d(projMat, triView.p[1]);
-            triProj.p[2] = get_mul_mat4x4_v3d(projMat, triView.p[2]);
+            if (check_tri_visible(triTrans, camPos))
+            {
+                // Apply view transformations
+                triView.p[0] = get_mul_mat4x4_v3d(viewMat, triTrans.p[0]);
+                triView.p[1] = get_mul_mat4x4_v3d(viewMat, triTrans.p[1]);
+                triView.p[2] = get_mul_mat4x4_v3d(viewMat, triTrans.p[2]);
 
-            // Normalize
-            triProj.p[0] = triProj.p[0] / triProj.p[0].w;
-            triProj.p[1] = triProj.p[1] / triProj.p[1].w;
-            triProj.p[2] = triProj.p[2] / triProj.p[2].w;
+                // We've already transformed our points via the view matrix. We can now easily
+                // Apply our clipping algorithm with the zNear plane
+                int clipped_tris = 0;
+                triangle clipped[2]; // max 2 clipped triangles in the case of quad split
 
-            // With wireframe, don't backface cull. 
-            // We simply remove faces not facing the cam, not the ones being "blocked" by others.
-            
-            // Load faces to buffer so that they may be processed before rendering
+                // Notice the zNear normal runs along the z-axis. So, we can hardcode { 0.0f, 0.0f, 1.0f } as our plane normal
+                clipped_tris = clip_tri_plane({ 0.0f, 0.0f, zNear }, { 0.0f, 0.0f, 1.0f }, triView, clipped[0], clipped[1]);
 
-            triBuffer.push_back(triProj);
-            
+                // Go through all clipped tris
+                for (int i = 0; i < clipped_tris; i++)
+                {
+                    // Apply projection on our clipped triangles
+                    triProj.p[0] = get_mul_mat4x4_v3d(projMat, clipped[i].p[0]);
+                    triProj.p[1] = get_mul_mat4x4_v3d(projMat, clipped[i].p[1]);
+                    triProj.p[2] = get_mul_mat4x4_v3d(projMat, clipped[i].p[2]);
+
+                    // Normalize
+                    triProj.p[0] = triProj.p[0] / triProj.p[0].w;
+                    triProj.p[1] = triProj.p[1] / triProj.p[1].w;
+                    triProj.p[2] = triProj.p[2] / triProj.p[2].w;
+
+
+                    // Scale to center
+                    map_screen_space(triProj.p[0], LOGICAL_WT, LOGICAL_HT);
+                    map_screen_space(triProj.p[1], LOGICAL_WT, LOGICAL_HT);
+                    map_screen_space(triProj.p[2], LOGICAL_WT, LOGICAL_HT);
+
+                    // With wireframe, don't backface cull. 
+                    // We simply remove faces not facing the cam, not the ones being "blocked" by others.
+
+                    // Load faces to buffer so that they may be processed before rendering
+                    triBuffer.push_back(triProj);
+                    
+                }
+            }
         }
 
         // Painter's algorithm; sort triangle render order from back to front based on midpoint
+        // https://en.wikipedia.org/wiki/Painter%27s_algorithm
         sort_tri_buffer(triBuffer);
 
         // Render triangle buffer
-        for (auto &t : triBuffer) // auto &t -> able to change t (for mapping)
-        {
-            // Scale to center
-            map_screen_space(t.p[0], LOGICAL_WT, LOGICAL_HT);
-            map_screen_space(t.p[1], LOGICAL_WT, LOGICAL_HT);
-            map_screen_space(t.p[2], LOGICAL_WT, LOGICAL_HT);
+        // New process for triangle clipping
+        // A little confusing: Skip to 42:09 in
+        // https://www.youtube.com/watch?v=HXSuNxpCzdM&list=RDCMUC-yuWVUplUJZvieEligKBkA&index=3
+        // for an explanation of the algorithm
+        
+        // Clear back buffer from last frame
+        SDL_SetRenderDrawColor(hRend, 0, 0, 0, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(hRend);
 
-            // Draw the triangle
-            draw_tri_wireF(
-                hRend,
-                t.p[0].x, t.p[0].y,
-                t.p[1].x, t.p[1].y,
-                t.p[2].x, t.p[2].y,
-                255, 255, 255
-            );
+        for (auto& t : triBuffer) // auto &t -> able to change t (for mapping)
+        {
+            // Clip triangle against all 4 edges of screen
+            triangle clippedPair[2];
+            list<triangle> triList;
+            triList.push_back(t);
+            int newTriCount = 1;
+
+            for (int p = 0; p < 4; p++)
+            {
+                int trisToAdd = 0;
+                while (newTriCount > 0)
+                {
+                    triangle test = triList.front();
+                    triList.pop_front();
+                    newTriCount--;
+
+                    switch (p)
+                    {
+                    case 0:	
+                        trisToAdd = clip_tri_plane({ 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, test, clippedPair[0], clippedPair[1]); break;
+                    case 1:	
+                        trisToAdd = clip_tri_plane({ 0.0f, (float)LOGICAL_HT, 0.0f }, { 0.0f, -1.0f, 0.0f }, test, clippedPair[0], clippedPair[1]); break;
+                    case 2:	
+                        trisToAdd = clip_tri_plane({ 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, test, clippedPair[0], clippedPair[1]); break;
+                    case 3:	
+                        trisToAdd = clip_tri_plane({ (float)LOGICAL_WT, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f }, test, clippedPair[0], clippedPair[1]); break;
+                    }
+
+                    for (int w = 0; w < trisToAdd; w++)
+                    {
+                        triList.push_back(clippedPair[w]);
+                    }
+                }
+
+                newTriCount = triList.size();
+            }
+
+            for (auto& t_final : triList)
+            {
+                // Draw the triangle
+                draw_tri_wireF(
+                    hRend,
+                    t_final.p[0].x, t_final.p[0].y,
+                    t_final.p[1].x, t_final.p[1].y,
+                    t_final.p[2].x, t_final.p[2].y,
+                    255, 255, 255
+                );
+            }
         }
 
         // Present ("flip") back buffer

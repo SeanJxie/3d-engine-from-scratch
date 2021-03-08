@@ -71,14 +71,15 @@ std::vector<triangle> load_obj_from_fname(std::string fname)
         else if (raw[0] == "f")
         {
             nTris++;
-            fVec.push_back(
-                {
-                    vVec[std::stoi(raw[1]) - 1],
-                    vVec[std::stoi(raw[2]) - 1],
-                    vVec[std::stoi(raw[3]) - 1],
-                    255, 255, 255
-                }
-            );
+            triangle t1 =
+            {
+                vVec[std::stoi(raw[1]) - 1],
+                vVec[std::stoi(raw[2]) - 1],
+                vVec[std::stoi(raw[3]) - 1],
+            };
+
+            t1.c.r = 255; t1.c.g = 255; t1.c.b = 255;
+            fVec.push_back(t1);
 
             if (raw.size() == 5)
             {
@@ -89,7 +90,7 @@ std::vector<triangle> load_obj_from_fname(std::string fname)
                         vVec[std::stoi(raw[1]) - 1],
                         vVec[std::stoi(raw[3]) - 1],
                         vVec[std::stoi(raw[4]) - 1],
-                        255, 255, 255
+                        SDL_Color{255, 255, 255}
                     }
                 );
             }
@@ -102,3 +103,4 @@ std::vector<triangle> load_obj_from_fname(std::string fname)
 
     return fVec;
 }
+

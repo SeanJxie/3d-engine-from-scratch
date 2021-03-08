@@ -4,6 +4,7 @@
 #include <SDL.h>
 #include <math.h> // math.h is not included in matrix.h
 #include <vector>
+#include <list>
 #include <algorithm>
 
 #include "matrix4x4.h"
@@ -29,7 +30,7 @@ struct v3d
 struct triangle
 {
     v3d p[3];
-    int r = 0, g = 0, b = 0;
+    SDL_Color c;
 };
 
 
@@ -55,6 +56,12 @@ M4x4 get_rot_z(float rtheta);
 M4x4 get_mat_pointat(v3d pos, v3d t, v3d up);
 
 void map_screen_space(v3d& p, int winwt, int winht);
+
+// point_on_plane and plane_norm is data for constructing our plane
+
+float _point_plane_closest_dist(v3d point_on_plane, v3d plane_norm, v3d p);
+v3d plane_intersectv3d(v3d& point_on_plane, v3d& plane_norm, v3d& ls, v3d& le);
+int clip_tri_plane(v3d point_on_plane, v3d plane_norm, triangle& in_tri, triangle& out_tri1, triangle& out_tri2);
 
 void _fill_flat_top(SDL_Renderer* h, float tx, float ty, float mx, float my, float bx, float by);
 void _fill_flat_bot(SDL_Renderer* h, float tx, float ty, float mx, float my, float bx, float by);
