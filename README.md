@@ -20,6 +20,6 @@ The current implemented camera controls for the demo are:
 - `ESC`: exit the demo
 
 
-  ![example_2](https://github.com/SeanJxie/3d-engine-from-scratch/blob/main/image.png)
+        ![example_2](https://github.com/SeanJxie/3d-engine-from-scratch/blob/main/image.png)
 
 
