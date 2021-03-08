@@ -97,7 +97,8 @@ std::vector<triangle> load_obj_from_fname(std::string fname)
     }
 
     std::cout << "Load complete\n\n";
-    std::cout << "nTris (with quad splitting): " << nTris << std::endl << "nQuads: " << nQuads << std::endl << "nVerts: " << nVerts << std::endl;
+    std::cout << "---OBJECT DATA---\n";
+    std::cout << "nTris(with quad splitting) : " << nTris << std::endl << "nQuads : " << nQuads << std::endl << "nVerts : " << nVerts << std::endl << std::endl;
 
     return fVec;
 }

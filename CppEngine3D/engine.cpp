@@ -51,10 +51,17 @@ int clip_tri_plane(v3d point_on_plane, v3d plane_norm, triangle& in_tri, triangl
     int points_in_count = 0;
     int points_out_count = 0;
 
+
+    auto dist = [&](v3d& p)
+    {
+        v3d n = normv3d(p);
+        return (plane_norm.x * p.x + plane_norm.y * p.y + plane_norm.z * p.z - dotv3d(plane_norm, point_on_plane));
+    };
+
     // Distance of each point from plane (closest)
-    float d0 = _point_plane_closest_dist(point_on_plane, plane_norm, in_tri.p[0]);
-    float d1 = _point_plane_closest_dist(point_on_plane, plane_norm, in_tri.p[1]);
-    float d2 = _point_plane_closest_dist(point_on_plane, plane_norm, in_tri.p[2]);
+    float d0 = dist(in_tri.p[0]);
+    float d1 = dist(in_tri.p[1]);
+    float d2 = dist(in_tri.p[2]);
 
     // If point is "inside" (on one side (positive side)) of plane, add its address to 
     // the points_in array. Otherwise, it is not "inside" and thus add its address to the points_out array

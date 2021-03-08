@@ -12,6 +12,7 @@ https://www.youtube.com/watch?v=ih20l3pJoeU&list=RDCMUC-yuWVUplUJZvieEligKBkA&in
 
 
 #if _WIN64 // 64-bit SDL
+#define RENDER_FLAG SDL_RENDERER_SOFTWARE
 
 // Program constants
 int WINWT = 800, WINHT = 800;
@@ -21,10 +22,11 @@ const char* WINTT = "C++ Engine3D Demo";
 
 int main(int argc, char* argv[])
 {   
+	cout << "PROGRAM START\n\n";
 	// SDL setup
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_Window* hWin = SDL_CreateWindow(WINTT, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINWT, WINHT, SDL_WINDOW_SHOWN);
-	SDL_Renderer* hRend = SDL_CreateRenderer(hWin, -1, SDL_RENDERER_SOFTWARE);
+	SDL_Renderer* hRend = SDL_CreateRenderer(hWin, -1, RENDER_FLAG);
 	SDL_ShowCursor(false);
 
 	//SDL_RenderSetLogicalSize(hRend, LOGICAL_WT, LOGICAL_HT);
@@ -45,7 +47,7 @@ int main(int argc, char* argv[])
 	// Movement vars
 	float allRot = 0.0f;
 	float rotSpeed = 1.0f;
-	float moveSpeed = 0.1f;
+	float moveSpeed = 0.01f;
 
 	// Camera
 	v3d camPos = { 0.0f, 0.0f, 0.0f };
@@ -78,14 +80,18 @@ int main(int argc, char* argv[])
 
 	// Loop vars
 	bool run = true;
+	Uint64 curr = SDL_GetPerformanceCounter(), prev = 0;
+	float dt = 0.1f;
 
 	// Input vars
 	bool up = false, down = false, left = false, right = false, in = false, out = false;
 	int mposX, mposY;
-	float mouseSens = 0.05f;
+	float mouseSens = 0.1f;
 
 	while (run)
 	{
+		prev = curr;
+
 		while (SDL_PollEvent(&event))
 		{
 			switch (event.type)
@@ -160,12 +166,12 @@ int main(int argc, char* argv[])
 		
 		// lookDir is unit, scale to account for speed
 		// Get forward vector for in/out movement
-		forwardVec = lookDir * moveSpeed;
+		forwardVec = lookDir * moveSpeed * dt;
 		forwardVec.y = 0.0f; // We don't want to move up at the direction we look, only horizontally
 
 		// Get right vector for left/right movement: simple cross product of up and looking direction. It is already normalized
 		// https://en.wikipedia.org/wiki/Right-hand_rule
-		rightwardVec = normv3d(crossv3d(lookDir, upDir)) * moveSpeed;
+		rightwardVec = normv3d(crossv3d(lookDir, upDir)) * moveSpeed * dt;
 
 		// What kinda messed up camera has vertical movement based on camera angle... no temp_up vector needed here
 
@@ -179,8 +185,8 @@ int main(int argc, char* argv[])
 
 		// For up and down, "up" stays the same, no matter the orientation of our cam.
 		// Effectively, the x and y components of our uneeded "temp_up" vector would both be 0, so we just add y components.
-		if (up) camPos.y -= moveSpeed;
-		if (down) camPos.y += moveSpeed;
+		if (up) camPos.y -= moveSpeed * dt;
+		if (down) camPos.y += moveSpeed * dt;
 
 		// Define transformation matrices (object, not cam), all relative to the origin
 		get_rot_x(RAD(90.0f), matRotX);
@@ -285,9 +291,9 @@ int main(int argc, char* argv[])
 					case 1:	
 						trisToAdd = clip_tri_plane({ 0.0f, (float)LOGICAL_HT - 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f }, tempTri, clippedPair[0], clippedPair[1]); break;
 					case 2:	
-						trisToAdd = clip_tri_plane({ 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, tempTri, clippedPair[0], clippedPair[1]); break;
-					case 3:	
 						trisToAdd = clip_tri_plane({ (float)LOGICAL_WT - 1.0f, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f }, tempTri, clippedPair[0], clippedPair[1]); break;
+					case 3:	
+						trisToAdd = clip_tri_plane({ 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, tempTri, clippedPair[0], clippedPair[1]); break;	
 					}
 
 					for (int w = 0; w < trisToAdd; w++)
@@ -325,6 +331,9 @@ int main(int argc, char* argv[])
 		// Present ("flip") back buffer
 		SDL_RenderPresent(hRend);
 
+		curr = SDL_GetPerformanceCounter();
+		dt = ((curr - prev) * 1000 / (float)SDL_GetPerformanceFrequency());
+		//cout << "FPS: " << 1.0f / (dt * 0.001f) << '\r';
 		
 	}
 
@@ -332,6 +341,8 @@ int main(int argc, char* argv[])
 	SDL_DestroyRenderer(hRend);
 	SDL_DestroyWindow(hWin);
 	SDL_Quit();
+
+	cout << "\n\nPROGRAM END\n";
 
 	return 0;
 }
