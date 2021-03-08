@@ -19,5 +19,4 @@ The current implemented camera controls for the demo are:
 - `MOUSE`: look around
 - `ESC`: exit the demo
 
-Clipping has not yet been implemented so moving objects behind the camera breaks things.
 
