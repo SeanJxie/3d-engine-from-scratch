@@ -19,4 +19,6 @@ The current implemented camera controls for the demo are:
 - `MOUSE`: look around
 - `ESC`: exit the demo
 
+![example_2](https://github.com/SeanJxie/3d-engine-from-scratch/blob/main/image.png)
+
 
