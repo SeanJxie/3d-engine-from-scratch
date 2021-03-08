@@ -1,15 +1,17 @@
 #include "matrix4x4.h"
 
+/*
+
+There used to be a whole bunch of for loops in here, iterating over 4 consecutive integers.
+We don't want loops, we want speed.
+
+https://en.wikipedia.org/wiki/Loop_unrolling
+
+*/
 
 float dot(float* v1, float* v2)
 {
-    float res = 0.0f;
-    int i;
-    for (i = 0; i < 4; i++)
-    {
-        res += v1[i] * v2[i];
-    }
-    return res;
+    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2] + v1[3] * v2[3];
 }
 
 
@@ -23,23 +25,24 @@ float* M4x4::m_get_row(int i)
 float* M4x4::m_get_col(int j)
 {
     static float col[4] = { 0 };
-    int i;
-    for (i = 0; i < 4; i++)
-    {
-        col[i] = m_elems[i][j];
-    }
 
+    col[0] = m_elems[0][j];
+    col[1] = m_elems[1][j];
+    col[2] = m_elems[2][j];
+    col[3] = m_elems[3][j];
+   
     return col;
 }
 
 
 void M4x4::cast_identity()
 {
-    for (int ij = 0; ij < 4; ij++)
-    {
-        m_elems[ij][ij] = 1.0f;
-    }
+    m_elems[0][0] = 1.0f;
+    m_elems[1][1] = 1.0f;
+    m_elems[2][2] = 1.0f;
+    m_elems[3][3] = 1.0f;
 }
+
 
 M4x4 M4x4::get_inverse()
 {
@@ -62,23 +65,76 @@ M4x4 M4x4::operator *(M4x4 o)
     M4x4 resMat;
     float* row;
     float* col;
-    int i, j;
-    for (i = 0; i < 4; i++)
-    {
-        for (j = 0; j < 4; j++)
-        {
-            row = m_get_row(i);
-            col = o.m_get_col(j);
-            resMat.m_elems[i][j] = dot(row, col);
-        }
-    }
 
+    row = m_get_row(0);
+    col = o.m_get_col(0);
+    resMat.m_elems[0][0] = dot(row, col);
+
+    row = m_get_row(0);
+    col = o.m_get_col(1);
+    resMat.m_elems[0][1] = dot(row, col);
+
+    row = m_get_row(0);
+    col = o.m_get_col(2);
+    resMat.m_elems[0][2] = dot(row, col);
+
+    row = m_get_row(0);
+    col = o.m_get_col(3);
+    resMat.m_elems[0][3] = dot(row, col);
+
+    row = m_get_row(1);
+    col = o.m_get_col(0);
+    resMat.m_elems[1][0] = dot(row, col);
+
+    row = m_get_row(1);
+    col = o.m_get_col(1);
+    resMat.m_elems[1][1] = dot(row, col);
+
+    row = m_get_row(1);
+    col = o.m_get_col(2);
+    resMat.m_elems[1][2] = dot(row, col);
+
+    row = m_get_row(1);
+    col = o.m_get_col(3);
+    resMat.m_elems[1][3] = dot(row, col);
+
+    row = m_get_row(2);
+    col = o.m_get_col(0);
+    resMat.m_elems[2][0] = dot(row, col);
+
+    row = m_get_row(2);
+    col = o.m_get_col(1);
+    resMat.m_elems[2][1] = dot(row, col);
+
+    row = m_get_row(2);
+    col = o.m_get_col(2);
+    resMat.m_elems[2][2] = dot(row, col);
+
+    row = m_get_row(2);
+    col = o.m_get_col(3);
+    resMat.m_elems[2][3] = dot(row, col);
+
+    row = m_get_row(3);
+    col = o.m_get_col(0);
+    resMat.m_elems[3][0] = dot(row, col);
+
+    row = m_get_row(3);
+    col = o.m_get_col(1);
+    resMat.m_elems[3][1] = dot(row, col);
+
+    row = m_get_row(3);
+    col = o.m_get_col(2);
+    resMat.m_elems[3][2] = dot(row, col);
+
+    row = m_get_row(3);
+    col = o.m_get_col(3);
+    resMat.m_elems[3][3] = dot(row, col);
 
     return resMat;
     
 }
 
-
+// Not used ---
 M4x4 M4x4::operator +(M4x4 o)
 {
     M4x4 resMat;
@@ -94,7 +150,7 @@ M4x4 M4x4::operator +(M4x4 o)
     return resMat;
 }
 
-
+// Not used ---
 M4x4 M4x4::operator -(M4x4 o)
 {  
     M4x4 resMat;

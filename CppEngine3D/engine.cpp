@@ -1,9 +1,9 @@
 #include "engine.h"
 
 
-v3d get_mul_mat4x4_v3d(M4x4 m, v3d v)
+void get_mul_mat4x4_v3d(M4x4 m, v3d v, v3d& out)
 {
-    return {
+    out = {
         v.x * m.m_elems[0][0] + v.y * m.m_elems[1][0] + v.z * m.m_elems[2][0] + v.w * m.m_elems[3][0],
         v.x * m.m_elems[0][1] + v.y * m.m_elems[1][1] + v.z * m.m_elems[2][1] + v.w * m.m_elems[3][1],
         v.x * m.m_elems[0][2] + v.y * m.m_elems[1][2] + v.z * m.m_elems[2][2] + v.w * m.m_elems[3][2],
@@ -171,79 +171,66 @@ v3d crossv3d(v3d a, v3d b)
 
 
 
-M4x4 get_projection_matrix(float rfov, float hwaspect, float zNear, float zFar)
+void get_projection_matrix(float rfov, float hwaspect, float zNear, float zFar, M4x4& out)
 {
     // https://www.jwwalker.com/pages/transformations.html
-    M4x4 projMat;
-    projMat.m_elems[0][0] = hwaspect / tanf(rfov / 2.0f);
-    projMat.m_elems[1][1] = 1.0f / tanf(rfov / 2.0f);
-    projMat.m_elems[2][2] = zFar / (zFar - zNear);
-    projMat.m_elems[2][3] = 1.0f;
-    projMat.m_elems[3][2] = -(zFar * zNear) / (zFar - zNear);
-
-    return projMat;
+    out.m_elems[0][0] = hwaspect / tanf(rfov / 2.0f);
+    out.m_elems[1][1] = 1.0f / tanf(rfov / 2.0f);
+    out.m_elems[2][2] = zFar / (zFar - zNear);
+    out.m_elems[2][3] = 1.0f;
+    out.m_elems[3][2] = -(zFar * zNear) / (zFar - zNear);
 }
 
 
-M4x4 get_trans_mat(float x, float y, float z)
+void get_trans_mat(float x, float y, float z, M4x4& out)
 {
-    M4x4 transMat;
-    transMat.m_elems[0][0] = 1.0f;
-    transMat.m_elems[1][1] = 1.0f;
-    transMat.m_elems[2][2] = 1.0f;
-    transMat.m_elems[3][3] = 1.0f;
-    transMat.m_elems[3][0] = x;
-    transMat.m_elems[3][1] = y;
-    transMat.m_elems[3][2] = z;
-
-    return transMat;
+    out.m_elems[0][0] = 1.0f;
+    out.m_elems[1][1] = 1.0f;
+    out.m_elems[2][2] = 1.0f;
+    out.m_elems[3][3] = 1.0f;
+    out.m_elems[3][0] = x;
+    out.m_elems[3][1] = y;
+    out.m_elems[3][2] = z;
 }
 
 
-M4x4 get_rot_x(float rtheta)
+void get_rot_x(float rtheta, M4x4& out)
 {
     // https://wikimedia.org/api/rest_v1/media/math/render/svg/a6821937d5031de282a190f75312353c970aa2df
-    M4x4 rotMat;
-    rotMat.m_elems[0][0] = 1.0f;
-    rotMat.m_elems[1][1] = cosf(rtheta);
-    rotMat.m_elems[1][2] = sinf(rtheta);
-    rotMat.m_elems[2][1] = -sinf(rtheta);
-    rotMat.m_elems[2][2] = cosf(rtheta);
-    rotMat.m_elems[3][3] = 1.0f;
-
-    return rotMat;
+    out.m_elems[0][0] = 1.0f;
+    out.m_elems[1][1] = cosf(rtheta);
+    out.m_elems[1][2] = sinf(rtheta);
+    out.m_elems[2][1] = -sinf(rtheta);
+    out.m_elems[2][2] = cosf(rtheta);
+    out.m_elems[3][3] = 1.0f;
 }
 
 
-M4x4 get_rot_y(float rtheta)
+void get_rot_y(float rtheta, M4x4& out)
 {
-    M4x4 rotMat;
-    rotMat.m_elems[0][0] = cosf(rtheta);
-    rotMat.m_elems[0][2] = sinf(rtheta);
-    rotMat.m_elems[1][1] = 1.0f;
-    rotMat.m_elems[2][0] = -sinf(rtheta);
-    rotMat.m_elems[2][2] = cosf(rtheta);
-    rotMat.m_elems[3][3] = 1.0f;
+    out.m_elems[0][0] = cosf(rtheta);
+    out.m_elems[0][2] = sinf(rtheta);
+    out.m_elems[1][1] = 1.0f;
+    out.m_elems[2][0] = -sinf(rtheta);
+    out.m_elems[2][2] = cosf(rtheta);
+    out.m_elems[3][3] = 1.0f;
 
-    return rotMat;
 }
 
 
-M4x4 get_rot_z(float rtheta)
+void get_rot_z(float rtheta, M4x4& out)
 {
-    M4x4 rotMat;
-    rotMat.m_elems[0][0] = cosf(rtheta);
-    rotMat.m_elems[0][1] = sinf(rtheta);
-    rotMat.m_elems[1][0] = -sinf(rtheta);
-    rotMat.m_elems[1][1] = cosf(rtheta);
-    rotMat.m_elems[2][2] = 1.0f;
-    rotMat.m_elems[3][3] = 1.0f;
+    out.m_elems[0][0] = cosf(rtheta);
+    out.m_elems[0][1] = sinf(rtheta);
+    out.m_elems[1][0] = -sinf(rtheta);
+    out.m_elems[1][1] = cosf(rtheta);
+    out.m_elems[2][2] = 1.0f;
+    out.m_elems[3][3] = 1.0f;
     
-    return rotMat;
 }
 
 
-M4x4 get_mat_pointat(v3d pos, v3d t, v3d up)
+void get_mat_pointat(v3d pos, v3d t, v3d up, M4x4& out)
 {
     // To point at a postion, we change the forwards, up, right, direction of the entire
     // cord system
@@ -259,25 +246,22 @@ M4x4 get_mat_pointat(v3d pos, v3d t, v3d up)
     v3d new_r = crossv3d(new_u, new_f);
 
     // Construct dimension change matrix 
-    M4x4 resMat;
-    resMat.m_elems[0][0] = new_r.x;	
-    resMat.m_elems[1][0] = new_u.x;	
-    resMat.m_elems[2][0] = new_f.x;	
-    resMat.m_elems[3][0] = pos.x;
+    out.m_elems[0][0] = new_r.x;	
+    out.m_elems[1][0] = new_u.x;	
+    out.m_elems[2][0] = new_f.x;	
+    out.m_elems[3][0] = pos.x;
+    
+    out.m_elems[0][1] = new_r.y;
+    out.m_elems[1][1] = new_u.y;
+    out.m_elems[2][1] = new_f.y;
+    out.m_elems[3][1] = pos.y;
 
-    resMat.m_elems[0][1] = new_r.y;
-    resMat.m_elems[1][1] = new_u.y;
-    resMat.m_elems[2][1] = new_f.y;
-    resMat.m_elems[3][1] = pos.y;
-
-    resMat.m_elems[0][2] = new_r.z;
-    resMat.m_elems[1][2] = new_u.z;
-    resMat.m_elems[2][2] = new_f.z;
-    resMat.m_elems[3][2] = pos.z;
-
-    resMat.m_elems[3][3] = 1.0f;
-
-    return resMat;
+    out.m_elems[0][2] = new_r.z;
+    out.m_elems[1][2] = new_u.z;
+    out.m_elems[2][2] = new_f.z;
+    out.m_elems[3][2] = pos.z;
+    
+    out.m_elems[3][3] = 1.0f; 
 }
 
 
@@ -342,7 +326,7 @@ bool check_tri_visible(triangle t, v3d cam)
     Projecting by a negative amount (< 0.0f) means the vectors face away from one another.
     If they were perpendicular, dotv3d(norm, camRay) == 0.0f.*/
 
-    return dotv3d(norm, camRay) > 0.0f;
+    return dotv3d(norm, camRay) < 0.0f;
 }
 
 

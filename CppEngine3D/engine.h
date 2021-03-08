@@ -31,7 +31,7 @@ struct v3d
 struct triangle
 {
     v3d p[3];
-    SDL_Color c;
+    SDL_Color c = { 0 };
 };
 
 
@@ -42,19 +42,19 @@ struct mesh
 
 
 // Mini vector library
-v3d get_mul_mat4x4_v3d(M4x4 m, v3d v);
+void get_mul_mat4x4_v3d(M4x4 m, v3d v, v3d& out);
 float dotv3d(v3d a, v3d b);
 float magv3d(v3d v);
 v3d normv3d(v3d v);
 v3d crossv3d(v3d a, v3d b);
 
-M4x4 get_projection_matrix(float rfov, float hwaspect, float zNear, float zFar);
+void get_projection_matrix(float rfov, float hwaspect, float zNear, float zFar, M4x4& out);
 
-M4x4 get_trans_mat(float x, float y, float z);
-M4x4 get_rot_x(float rtheta);
-M4x4 get_rot_y(float rtheta);
-M4x4 get_rot_z(float rtheta);
-M4x4 get_mat_pointat(v3d pos, v3d t, v3d up);
+void get_trans_mat(float x, float y, float z, M4x4& out);
+void get_rot_x(float rtheta, M4x4& out);
+void get_rot_y(float rtheta, M4x4& out);
+void get_rot_z(float rtheta, M4x4& out);
+void get_mat_pointat(v3d pos, v3d t, v3d up, M4x4& out);
 
 void map_screen_space(v3d& p, int winwt, int winht);
 
@@ -77,6 +77,6 @@ bool _midpoint_compare(triangle t1, triangle t2);
 void sort_tri_buffer(vector<triangle>& v);
 
 v3d get_norm(triangle t);
-bool check_tri_visible( triangle t, v3d cam);
+bool check_tri_visible(triangle t, v3d cam);
 
 #endif
