@@ -1,12 +1,17 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
+// Includes for all modules, including the object loader.
 #include <SDL.h>
-#include <SDL_opengl.h>
 #include <math.h> // math.h is not included in matrix.h
 #include <vector>
 #include <list>
 #include <algorithm>
+#include <unordered_map>
+#include <fstream>
+#include <string>
+#include <iostream>
+#include <strstream>
 
 #include "matrix4x4.h"
 
@@ -60,7 +65,7 @@ void map_screen_space(v3d& p, int winwt, int winht);
 
 // point_on_plane and plane_norm is data for constructing our plane
 
-float _point_plane_closest_dist(v3d point_on_plane, v3d plane_norm, v3d p);
+float _point_plane_closest_dist(v3d point_on_plane, v3d plane_norm, v3d& p);
 v3d plane_intersectv3d(v3d& point_on_plane, v3d& plane_norm, v3d& ls, v3d& le);
 int clip_tri_plane(v3d point_on_plane, v3d plane_norm, triangle& in_tri, triangle& out_tri1, triangle& out_tri2);
 

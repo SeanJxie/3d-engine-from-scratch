@@ -47,7 +47,8 @@ int main(int argc, char* argv[])
 	// Movement vars
 	float allRot = 0.0f;
 	float rotSpeed = 1.0f;
-	float moveSpeed = 0.01f;
+	float horizontalSpeed = 0.01f;
+	float verticalSpeed = 0.01f;
 
 	// Camera
 	v3d camPos = { 0.0f, 0.0f, 0.0f };
@@ -66,7 +67,7 @@ int main(int argc, char* argv[])
 
 	// Mesh/triangle/vertex 
 	mesh object;
-	object.tris = load_obj_from_fname("cube.obj");
+	object.tris = load_obj_mtl_fname("teapot.obj", "teapot.mtl");
 
 	vector<triangle> triBuffer;
 	triangle triProj, triTrans, triView;
@@ -166,27 +167,35 @@ int main(int argc, char* argv[])
 		
 		// lookDir is unit, scale to account for speed
 		// Get forward vector for in/out movement
-		forwardVec = lookDir * moveSpeed * dt;
+		forwardVec = normv3d(lookDir) * horizontalSpeed * dt;
+
+		// Bug here : lookat direction affects move speed on the x-z (horizontal) plane
 		forwardVec.y = 0.0f; // We don't want to move up at the direction we look, only horizontally
 
 		// Get right vector for left/right movement: simple cross product of up and looking direction. It is already normalized
 		// https://en.wikipedia.org/wiki/Right-hand_rule
-		rightwardVec = normv3d(crossv3d(lookDir, upDir)) * moveSpeed * dt;
+		rightwardVec = normv3d(crossv3d(lookDir, upDir)) * horizontalSpeed * dt;
 
 		// What kinda messed up camera has vertical movement based on camera angle... no temp_up vector needed here
 
 		// Process input 
 		// Add forwards / right vectors to camera position to move
-		if (in) camPos = camPos + forwardVec;
-		if (out) camPos = camPos - forwardVec;
+		if (in)
+		{
+			camPos = camPos + forwardVec;
+		}
+		if (out)
+		{
+			camPos = camPos - forwardVec;
+		}
 		
 		if (left) camPos = camPos + rightwardVec;
 		if (right) camPos = camPos - rightwardVec;
 
 		// For up and down, "up" stays the same, no matter the orientation of our cam.
 		// Effectively, the x and y components of our uneeded "temp_up" vector would both be 0, so we just add y components.
-		if (up) camPos.y -= moveSpeed * dt;
-		if (down) camPos.y += moveSpeed * dt;
+		if (up) camPos.y -= verticalSpeed * dt;
+		if (down) camPos.y += verticalSpeed * dt;
 
 		// Define transformation matrices (object, not cam), all relative to the origin
 		get_rot_x(RAD(90.0f), matRotX);
