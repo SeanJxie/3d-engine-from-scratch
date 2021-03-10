@@ -7,7 +7,7 @@
 
 std::vector<std::string> _split(const std::string s);
 
-std::vector<triangle> load_obj_mtl_fname(std::string obj, std::string mtl);
+std::vector<triangle> load_obj_mtl_fname(std::string obj, bool useMtl, std::string mtl);
 
 
 #endif

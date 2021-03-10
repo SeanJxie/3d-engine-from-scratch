@@ -16,7 +16,7 @@ https://www.youtube.com/watch?v=ih20l3pJoeU&list=RDCMUC-yuWVUplUJZvieEligKBkA&in
 
 // Program constants
 int WINWT = 800, WINHT = 800;
-int LOGICAL_WT = 800, LOGICAL_HT = 800; // For res change
+int LOGICAL_WT = 200, LOGICAL_HT = 200; // For res change
 const char* WINTT = "C++ Engine3D Demo";
 
 
@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
 	SDL_Renderer* hRend = SDL_CreateRenderer(hWin, -1, RENDER_FLAG);
 	SDL_ShowCursor(false);
 
-	//SDL_RenderSetLogicalSize(hRend, LOGICAL_WT, LOGICAL_HT);
+	SDL_RenderSetLogicalSize(hRend, LOGICAL_WT, LOGICAL_HT);
 
 	SDL_Event event;
    
@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
 
 	// Mesh/triangle/vertex 
 	mesh object;
-	object.tris = load_obj_mtl_fname("teapot.obj", "teapot.mtl");
+	object.tris = load_obj_mtl_fname("teapot.obj", true, "teapot.mtl");
 
 	vector<triangle> triBuffer;
 	triangle triProj, triTrans, triView;
@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 	// Loop vars
 	bool run = true;
 	Uint64 curr = SDL_GetPerformanceCounter(), prev = 0;
-	float dt = 0.1f;
+	float dt;
 
 	// Input vars
 	bool up = false, down = false, left = false, right = false, in = false, out = false;
@@ -91,7 +91,11 @@ int main(int argc, char* argv[])
 
 	while (run)
 	{
+		// Process delta time
 		prev = curr;
+		curr = SDL_GetPerformanceCounter();
+		dt = ((curr - prev) * 1000 / (float)SDL_GetPerformanceFrequency());
+		//cout << "FPS: " << 1.0f / (dt * 0.001f) << '\r';
 
 		while (SDL_PollEvent(&event))
 		{
@@ -112,6 +116,16 @@ int main(int argc, char* argv[])
 				case SDLK_SPACE: up = true; break;
 
 				case SDLK_ESCAPE: run = false; break;
+				case SDLK_EQUALS: 
+					LOGICAL_WT += 1; 
+					LOGICAL_HT += 1; 
+					SDL_RenderSetLogicalSize(hRend, LOGICAL_WT, LOGICAL_HT);
+					break;
+				case SDLK_MINUS: 
+					LOGICAL_WT -= 1; 
+					LOGICAL_HT -= 1; 
+					SDL_RenderSetLogicalSize(hRend, LOGICAL_WT, LOGICAL_HT);
+					break;
 				}
 				break;
 
@@ -165,29 +179,22 @@ int main(int argc, char* argv[])
 		// The view matrix is a fundemental processing stage, along with projection and transformation:
 		viewMat = cameraMat.get_inverse();
 		
-		// lookDir is unit, scale to account for speed
-		// Get forward vector for in/out movement
-		forwardVec = normv3d(lookDir) * horizontalSpeed * dt;
-
-		// Bug here : lookat direction affects move speed on the x-z (horizontal) plane
-		forwardVec.y = 0.0f; // We don't want to move up at the direction we look, only horizontally
+		
 
 		// Get right vector for left/right movement: simple cross product of up and looking direction. It is already normalized
 		// https://en.wikipedia.org/wiki/Right-hand_rule
 		rightwardVec = normv3d(crossv3d(lookDir, upDir)) * horizontalSpeed * dt;
 
+		// Forward vector is the negative cross of our right vector and up vector
+		forwardVec = normv3d(crossv3d(rightwardVec, upDir)) * horizontalSpeed * dt;
+		forwardVec.y = 0.0f; // We don't want to move up at the direction we look, only horizontally
+
 		// What kinda messed up camera has vertical movement based on camera angle... no temp_up vector needed here
 
 		// Process input 
 		// Add forwards / right vectors to camera position to move
-		if (in)
-		{
-			camPos = camPos + forwardVec;
-		}
-		if (out)
-		{
-			camPos = camPos - forwardVec;
-		}
+		if (in) camPos = camPos - forwardVec; // We subtract here to compensate for the negative of the crossed right vector
+		if (out) camPos = camPos + forwardVec;
 		
 		if (left) camPos = camPos + rightwardVec;
 		if (right) camPos = camPos - rightwardVec;
@@ -336,14 +343,8 @@ int main(int argc, char* argv[])
 		SDL_SetRenderDrawColor(hRend, 255, 255, 255, SDL_ALPHA_OPAQUE);
 		SDL_RenderDrawRect(hRend, &crosshair);
 
-
 		// Present ("flip") back buffer
 		SDL_RenderPresent(hRend);
-
-		curr = SDL_GetPerformanceCounter();
-		dt = ((curr - prev) * 1000 / (float)SDL_GetPerformanceFrequency());
-		//cout << "FPS: " << 1.0f / (dt * 0.001f) << '\r';
-		
 	}
 
 	// Destroy renderer, window on quit
@@ -351,7 +352,7 @@ int main(int argc, char* argv[])
 	SDL_DestroyWindow(hWin);
 	SDL_Quit();
 
-	cout << "\n\nPROGRAM END\n";
+	cout << "\nPROGRAM END\n";
 
 	return 0;
 }

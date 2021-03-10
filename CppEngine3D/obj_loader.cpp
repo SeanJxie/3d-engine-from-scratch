@@ -13,56 +13,61 @@ std::vector<std::string> _split(const std::string s) {
 }
 
 
-std::vector<triangle> load_obj_mtl_fname(std::string obj, std::string mtl)
+std::vector<triangle> load_obj_mtl_fname(std::string obj, bool useMtl, std::string mtl)
 {
-    std::cout << "Loading object [" << obj << "] with material [" << mtl << "]..." << std::endl;
-
-    const char* TARGET_PROPERTY = "Ks"; // Ambient/specular/diffuse
-
     std::string line;
     std::vector<std::string> data;
     std::string dataType; // for readability
 
-    // Load mtl
-    // We only parse the ambient texture properties.
-    // https://en.wikipedia.org/wiki/Shading#Ambient_lighting
-
     std::unordered_map<std::string, SDL_Color> materialMap;
     std::string mtlName;
-    std::ifstream mtlfs(mtl);
-
-    while (std::getline(mtlfs, line))
-    {  
-        data = _split(line);
-        
-        if (!data.empty())
+    
+    // Load mtl
+    if (useMtl)
+    {
+        std::cout << "Loading material [" << mtl << "] ..." << std::endl;
+        const char* TARGET_PROPERTY = "Ks"; // Ambient/specular/diffuse
+        std::cout << "Target texture property = " << TARGET_PROPERTY << "\n\n";
+        // https://en.wikipedia.org/wiki/Shading#Ambient_lighting
+        std::ifstream mtlfs(mtl);
+        while (std::getline(mtlfs, line))
         {
-            dataType = data[0];
-            if (dataType == "newmtl")
-            {
-                mtlName = data[1];
-            }
+            data = _split(line);
 
-            if (dataType == TARGET_PROPERTY)
+            if (!data.empty())
             {
-                SDL_Color c = {
-                    std::stof(data[1]) * 255,
-                    std::stof(data[2]) * 255,
-                    std::stof(data[3]) * 255
-                };
+                dataType = data[0];
+                if (dataType == "newmtl")
+                {
+                    mtlName = data[1];
+                }
 
-                materialMap[mtlName] = c;
+                if (dataType == TARGET_PROPERTY)
+                {
+                    SDL_Color c = {
+                        std::stof(data[1]) * 255,
+                        std::stof(data[2]) * 255,
+                        std::stof(data[3]) * 255
+                    };
+
+                    materialMap[mtlName] = c;
+                }
             }
         }
-    }
 
-    mtlfs.close();
+        mtlfs.close();
+    }
+    else std::cout << "No material loaded\n\n";
+
 
     // Load obj
+    std::cout << "Loading object [" << obj << "] ...\n\n";
     std::vector<v3d> vVec;
     std::vector<triangle> fVec;
 
     std::ifstream objfs(obj);
+
+    SDL_Color currCol;
     
 
     int nTris = 0, nQuads = 0, nVerts = 0;
@@ -89,12 +94,16 @@ std::vector<triangle> load_obj_mtl_fname(std::string obj, std::string mtl)
 
             else if (dataType == "f")
             {
+                
                 nTris++;
+                if (useMtl) currCol = materialMap[mtlName];
+                else  currCol = { (Uint8)(rand() % 255), (Uint8)(rand() % 255) , (Uint8)(rand() % 255) };
+  
                 fVec.push_back({
-                    vVec[std::stoi(data[1]) - 1],
-                    vVec[std::stoi(data[2]) - 1],
-                    vVec[std::stoi(data[3]) - 1],
-                    materialMap[mtlName]
+                        vVec[std::stoi(data[1]) - 1],
+                        vVec[std::stoi(data[2]) - 1],
+                        vVec[std::stoi(data[3]) - 1],
+                        currCol
                     }
                 );
 
@@ -108,7 +117,7 @@ std::vector<triangle> load_obj_mtl_fname(std::string obj, std::string mtl)
                             vVec[std::stoi(data[1]) - 1],
                             vVec[std::stoi(data[3]) - 1],
                             vVec[std::stoi(data[4]) - 1],
-                            materialMap[mtlName]
+                            currCol
                         }
                     );
                 }

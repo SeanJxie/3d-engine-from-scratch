@@ -2,11 +2,9 @@
 #define ENGINE_H
 
 // Includes for all modules, including the object loader.
-#include <SDL.h>
 #include <math.h> // math.h is not included in matrix.h
 #include <vector>
 #include <list>
-#include <algorithm>
 #include <unordered_map>
 #include <fstream>
 #include <string>
@@ -14,6 +12,7 @@
 #include <strstream>
 
 #include "matrix4x4.h"
+#include "renderer.h" // Algorithm.h included for sort()
 
 
 #define RAD(X) (X * (float)M_PI / 180.0f)
@@ -68,15 +67,6 @@ void map_screen_space(v3d& p, int winwt, int winht);
 float _point_plane_closest_dist(v3d point_on_plane, v3d plane_norm, v3d& p);
 v3d plane_intersectv3d(v3d& point_on_plane, v3d& plane_norm, v3d& ls, v3d& le);
 int clip_tri_plane(v3d point_on_plane, v3d plane_norm, triangle& in_tri, triangle& out_tri1, triangle& out_tri2);
-
-void _fill_flat_top(SDL_Renderer* h, float tx, float ty, float mx, float my, float bx, float by);
-void _fill_flat_bot(SDL_Renderer* h, float tx, float ty, float mx, float my, float bx, float by);
-void _draw_line_bresenham(SDL_Renderer* h, int sx, int sy, int ex, int ey);
-
-void draw_tri_wireF(SDL_Renderer* h, float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b);
-
-void draw_tri_raster_stdF(SDL_Renderer* h, float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b);
-void draw_tri_raster_bresenhamF(SDL_Renderer* h, float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b);
 
 bool _midpoint_compare(triangle t1, triangle t2);
 void sort_tri_buffer(vector<triangle>& v);
